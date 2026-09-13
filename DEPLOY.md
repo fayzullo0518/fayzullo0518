@@ -18,6 +18,12 @@ Qaysi birini tanlamang, kerak bo'ladigan narsa bir xil:
 
 ## 1. Render.com — eng oson
 
+**Bir bosishda:**
+
+https://render.com/deploy?repo=https://github.com/fayzullo0518/fayzullo0518
+
+Yoki qo'lda:
+
 1. [render.com](https://render.com) da ro'yxatdan o'ting (karta kerak emas).
 2. **New → Blueprint** → GitHub hisobini ulang → shu repozitoriyni tanlang.
 3. Render `render.yaml` ni o'qiydi va hamma sozlamani o'zi qo'yadi.
