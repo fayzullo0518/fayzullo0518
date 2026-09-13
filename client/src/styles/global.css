@@ -1,0 +1,210 @@
+/* ============================================================
+   Gold Med Nova — design tokens
+   Light base: Cloud Dancer (Pantone Color of the Year 2026)
+   Accent:     Nova Blue / Nova Cyan
+   ============================================================ */
+
+:root {
+  color-scheme: light;
+
+  /* brand */
+  --nm-ink:        #1A1F3D;
+  --nm-blue:       #3B5BFF;
+  --nm-blue-deep:  #2540D9;
+  --nm-cyan:       #38D6E0;
+  --nm-cloud:      #F4F3EF;   /* Cloud Dancer */
+  --logo-ink:      #1A1F3D;
+
+  /* surfaces */
+  --bg:            #F4F3EF;
+  --bg-elevated:   #FFFFFF;
+  --surface:       #FFFFFF;
+  --surface-2:     #F4F4F6;
+  --surface-3:     #ECECEF;
+
+  /* text */
+  --text:          #0B1020;
+  --text-2:        rgba(11, 16, 32, 0.62);
+  --text-3:        rgba(11, 16, 32, 0.42);
+  --text-invert:   #FFFFFF;
+
+  /* lines */
+  --border:        rgba(11, 16, 32, 0.10);
+  --border-strong: rgba(11, 16, 32, 0.22);
+
+  /* accents */
+  --accent:        var(--nm-blue);
+  --accent-soft:   rgba(59, 91, 255, 0.10);
+  --accent-2:      var(--nm-cyan);
+
+  /* status */
+  --ok:            #12A150;
+  --warn:          #E9A23B;
+  --danger:        #E5484D;
+
+  /* hero (spec: minimal black & white) */
+  --hero-bg:       #FFFFFF;
+  --hero-fg:       #000000;
+  --hero-pill:     #F4F4F6;
+  --hero-fade:     linear-gradient(to top, #ffffff 0%, rgba(255,255,255,0.8) 50%, transparent 100%);
+
+  /* shape */
+  --r-sm: 10px;
+  --r-md: 16px;
+  --r-lg: 24px;
+  --r-xl: 32px;
+
+  --shadow-sm: 0 1px 2px rgba(11,16,32,.06), 0 4px 14px rgba(11,16,32,.05);
+  --shadow-md: 0 2px 6px rgba(11,16,32,.06), 0 18px 50px rgba(11,16,32,.09);
+  --shadow-lg: 0 30px 90px rgba(11,16,32,.16);
+
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --nav-h: 64px;
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  --bg:            #0A0C12;
+  --bg-elevated:   #11141C;
+  --surface:       #11141C;
+  --surface-2:     #171B25;
+  --surface-3:     #1E2330;
+
+  --text:          #EDEFF5;
+  --text-2:        rgba(237, 239, 245, 0.62);
+  --text-3:        rgba(237, 239, 245, 0.40);
+  --text-invert:   #0A0C12;
+
+  --border:        rgba(237, 239, 245, 0.12);
+  --border-strong: rgba(237, 239, 245, 0.26);
+
+  --logo-ink:      #EDEFF5;
+  --accent:        #6B84FF;
+  --accent-soft:   rgba(107, 132, 255, 0.16);
+  --accent-2:      #4FE3EC;
+
+  --hero-bg:       #0A0C12;
+  --hero-fg:       #FFFFFF;
+  --hero-pill:     #191D28;
+  --hero-fade:     linear-gradient(to top, #0A0C12 0%, rgba(10,12,18,0.82) 50%, transparent 100%);
+
+  --shadow-sm: 0 1px 2px rgba(0,0,0,.5), 0 4px 14px rgba(0,0,0,.35);
+  --shadow-md: 0 2px 6px rgba(0,0,0,.45), 0 18px 50px rgba(0,0,0,.5);
+  --shadow-lg: 0 30px 90px rgba(0,0,0,.6);
+}
+
+/* ---------- reset ---------- */
+*, *::before, *::after { box-sizing: border-box; }
+html, body, #root { height: 100%; }
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  font-weight: 400;
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--text);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+  transition: background-color .35s var(--ease), color .35s var(--ease);
+}
+
+img, svg, video { display: block; max-width: 100%; }
+button, input, select, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; background: none; border: none; padding: 0; }
+a { color: inherit; text-decoration: none; }
+h1, h2, h3, h4, h5, h6, p { margin: 0; }
+ul, ol { margin: 0; padding: 0; list-style: none; }
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+::selection { background: var(--accent); color: #fff; }
+
+/* ---------- shared layout ---------- */
+.nm-shell { min-height: 100%; display: flex; flex-direction: column; }
+.nm-main { flex: 1 0 auto; }
+
+.container {
+  width: 100%;
+  max-width: 1240px;
+  margin-inline: auto;
+  padding-inline: 16px;
+}
+@media (min-width: 768px) { .container { padding-inline: 32px; } }
+
+.section { padding: 64px 0; }
+@media (min-width: 768px) { .section { padding: 104px 0; } }
+
+.eyebrow {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-size: 11px; font-weight: 500; letter-spacing: .14em;
+  text-transform: uppercase; color: var(--text-3);
+}
+.eyebrow .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+
+.section-title {
+  font-weight: 300;
+  font-size: clamp(1.75rem, 5vw, 3rem);
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+  margin-top: 14px;
+}
+.section-sub { margin-top: 14px; color: var(--text-2); max-width: 56ch; font-weight: 300; }
+
+/* ---------- buttons ---------- */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  height: 42px; padding: 0 20px; border-radius: 999px;
+  font-size: 13px; font-weight: 500; white-space: nowrap;
+  border: 1px solid transparent;
+  transition: transform .25s var(--ease), background-color .25s var(--ease),
+              border-color .25s var(--ease), opacity .25s var(--ease), color .25s var(--ease);
+}
+.btn:hover { transform: translateY(-1px); }
+.btn:active { transform: translateY(0); }
+.btn-primary { background: var(--accent); color: #fff; }
+.btn-primary:hover { background: var(--nm-blue-deep); }
+:root[data-theme='dark'] .btn-primary:hover { background: #5A73FF; }
+.btn-dark { background: var(--text); color: var(--bg); }
+.btn-ghost { border-color: var(--border-strong); color: var(--text); }
+.btn-ghost:hover { background: var(--surface-2); }
+.btn-sm { height: 34px; padding: 0 14px; font-size: 12px; }
+.btn:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+
+/* ---------- pills / chips ---------- */
+.chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 12px; border-radius: 999px;
+  background: var(--surface); border: 1px solid var(--border);
+  font-size: 11px; font-weight: 500; color: var(--text-2);
+}
+
+/* ---------- utility ---------- */
+.sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0;
+}
+.skip-link {
+  position: absolute; left: 12px; top: -60px; z-index: 999;
+  background: var(--text); color: var(--bg); padding: 10px 16px; border-radius: 10px;
+  transition: top .2s var(--ease);
+}
+.skip-link:focus { top: 12px; }
+
+/* ---------- reduced motion ---------- */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

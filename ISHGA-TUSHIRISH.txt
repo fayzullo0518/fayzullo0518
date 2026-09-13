@@ -1,0 +1,266 @@
+GOLD MED NOVA — saytni ishga tushirish
+======================================
+
+Kerak: Node.js 20 yoki undan yuqori (https://nodejs.org)
+
+1) Papkani oching va kutubxonalarni o'rnating:
+
+   npm run install:all
+
+2) Saytni ishga tushiring:
+
+   npm run dev
+
+   Sayt        ->  http://localhost:5173
+   Server API  ->  http://localhost:5175/api/health
+
+3) Ishlab chiqarish (production) rejimi:
+
+   npm run build
+   npm start
+
+   Bunda sayt ham, API ham http://localhost:5175 manzilida ishlaydi.
+
+
+ADMIN PANELGA KIRISH
+--------------------
+Saytning HECH BIR joyida admin panelga havola yo'q — na yuqori menyuda,
+na pastki qismda. Panel faqat yashirin manzil orqali ochiladi:
+
+   http://localhost:5173/dev          (dev rejimda)
+   http://localhost:5175/dev          (production rejimda)
+
+Ikkala yozuv ham ishlaydi:  /dev   va   /adm1n
+Shu manzillar yozilgandagina login/parol oynasi chiqadi. /admin yoki
+/login yozilsa, tashrifchi bosh sahifaga qaytariladi.
+
+PAROL ENDI BU HUJJATDA YOZILMAYDI.
+
+Birinchi administrator .env faylidan olinadi:
+
+   ADMIN_USERNAME=fayzullo
+   ADMIN_PASSWORD=<kamida 12 belgi>
+
+ADMIN_PASSWORD ni bo'sh qoldirsangiz, server birinchi ishga tushganda
+tasodifiy parol yaratadi va uni FAQAT BIR MARTA terminalga chiqaradi:
+
+   +------------------------------------------------------+
+   |  BIRINCHI KIRISH UCHUN PAROL (faqat bir marta)       |
+   |  login : fayzullo                                    |
+   |  parol : 7D8g0_UCMgejMJdx                            |
+   +------------------------------------------------------+
+
+O'sha parolni ko'chirib oling va kiring. Panelda "Parolni almashtiring"
+ogohlantirishi chiqib turadi — Sozlamalar bo'limidan o'zingiznikini
+qo'ying.
+
+Qolgan uchta hisob (SonYun, dilnoza, otabek) PAROLSIZ yaratiladi —
+super admin panelning "Jamoa" bo'limidan parol bermaguncha ular kira
+olmaydi. Umuman kerak bo'lmasa .env ga SEED_TEAM=0 yozing.
+
+Rollar:
+   Super admin (fayzullo) — hammasi, jumladan admin tayinlash
+   Admin       (SonYun)   — katalog, uskuna, yo'riqnoma, so'rovlar
+   Menejer     (dilnoza)  — faqat ko'rish
+   Kuzatuvchi  (otabek)   — faqat ko'rish
+
+Xavfsizlik haqida to'liq ma'lumot: SECURITY.md
+Serverga joylash: DEPLOY.md
+
+
+APPARAT MONITORINGI
+-------------------
+Admin panel -> chap menyudagi "Apparat monitoringi".
+
+Har bir sotilgan va o'rnatilgan uskuna uchun alohida yozuv ochiladi:
+
+  * Uskuna rasmlari      — istalgancha, jami 50 MB gacha
+  * Klassifikatsiya      — uch bosqich: Yo'nalish -> Bo'lim -> Punkt
+                           (15 yo'nalish, 67 bo'lim, 326 punkt)
+  * Asosiy ma'lumotlar   — ishlab chiqaruvchi kompaniya, firma mamlakati,
+                           ishlab chiqarilgan mamlakat, uskuna nomi,
+                           qurilma modeli, seriya raqami
+  * Hujjatlar            — shartnoma va hisob-faktura fayllari
+                           (pdf, doc, docx, xls, xlsx, rasm, arxiv)
+  * Sanalar              — ishlab chiqarilgan, sotib olingan,
+                           KAFOLAT MUDDATI va SOTILGAN SANA
+  * Narxi                — uskuna narxi
+  * Joylashuv            — avval Region, keyin o'sha regionning tuman va
+                           shaharlari tanlanadi (butun O'zbekiston: 14 ta
+                           region, 205 ta tuman/shahar). Ro'yxatda bo'lmasa
+                           "Boshqa — qo'lda kiritish" tanlanib yoziladi.
+                           Tashkilot nomi qo'lda kiritiladi.
+  * Holati               — Soz / Nosoz / Yaroqsiz.
+                           Nosoz yoki yaroqsiz tanlansa, buzilish sababini
+                           yozish uchun alohida oyna ochiladi.
+  * Xarita               — xaritani bossangiz koordinatalar avtomatik
+                           to'ladi; koordinatalarni yozsangiz belgi
+                           xaritada o'sha joyga ko'chadi.
+
+"Saqlash" tugmasi bosilganda hammasi ma'lumotlar bazasiga yoziladi.
+
+EXCEL:
+  "Excel'ga yuklash"        -> butun reyestr + klassifikatsiya varag'i
+  "Klassifikatsiya (Excel)" -> faqat uch bosqichli klassifikatsiya
+
+Klassifikatsiyaning tayyor nusxasi shu papkada: klassifikatsiya.xlsx
+
+
+QR KOD
+------
+Har bir monitoring yozuvi o'z QR kodiga ega (yozuvni saqlagandan keyin
+ko'rinadi). Uni chop etib uskunaga yopishtiring.
+
+QR skanerlanganda uch tugmali oyna ochiladi:
+
+  1. Qanday ishlatish       -> biriktirilgan foydalanish yo'riqnomasi
+  2. Apparat ma'lumotlari   -> faqat rasmi, nomi, modeli, seriya raqami
+                               va holati ko'rinadi. Foydalanuvchi holatni
+                               o'zgartira oladi — nosoz/yaroqsiz tanlansa
+                               sabab yozish majburiy.
+  3. Operator bilan bog'lanish -> operator telefoni va aloqa kanallari
+
+Holat o'zgarganda ochiq turgan BARCHA admin panellariga bildirishnoma
+keladi (yuqoridagi qo'ng'iroq belgisi). Brauzer ruxsat bersa, tizim
+bildirishnomasi ham chiqadi.
+
+
+YO'RIQNOMALAR
+-------------
+Admin panel -> "Yo'riqnomalar". Yo'riqnoma bloklardan yig'iladi:
+har bir blokda apparat rasmi (ixtiyoriy), sarlavha va matn bo'ladi.
+"+" tugmasi bilan kerak boricha blok qo'shiladi.
+
+Yo'riqnomalar saytda hech qayerda ro'yxatga chiqmaydi — ularga faqat
+QR kod orqali yoki admin biriktirgan apparat sahifasidan kirish mumkin.
+
+
+APPARAT TEXNIK PARAMETRLARI
+---------------------------
+Barcha apparatlar uchun qatorlar BIR XIL (14 ta standart qator:
+ishlab chiqaruvchi, mamlakat, quvvat, o'lchamlari, og'irligi va h.k.).
+Faqat qiymatlar har bir apparat uchun alohida kiritiladi.
+
+Undan keyin "Ushbu apparatning o'z parametrlari" bo'limi keladi —
+bu yerga faqat shu apparatga tegishli qatorlar yoziladi.
+
+Saytda bu jadval apparat rasmining pastida chiqadi. Telefonda avval
+apparat nomi, rasmi va asosiy parametrlari ko'rinadi, qolgani esa
+"Ko'proq ma'lumot" tugmasi ostida turadi.
+
+
+XARITA
+------
+Xarita OpenStreetMap plitalaridan foydalanadi — bepul va API kalit
+talab qilmaydi. Yandex Maps kalit (API key) ro'yxatdan o'tishni talab
+qilgani uchun ulanmagan. Kerak bo'lsa, kalit olinganidan keyin
+client/src/components/admin/MapPicker.jsx faylidagi LAYERS ro'yxatiga
+qo'shib qo'yish mumkin.
+
+
+TILLAR
+------
+O'zbekcha (asosiy), Ruscha, Inglizcha.
+Til almashtirgich: sayt yuqorisidagi globus tugmasi, admin panel yuqorisi
+va kirish sahifasi.
+
+
+MA'LUMOTLAR
+-----------
+server/data/db.json      -> adminlar, so'rovlar, kataloglar, apparatlar,
+                            monitoring yozuvlari, bildirishnomalar,
+                            yo'riqnomalar, aloqa sahifasi matni
+server/data/uploads/     -> panelda yuklangan rasmlar va hujjatlar
+client/public/products/  -> katalogdan olingan 233 ta apparat rasmi
+
+Hammasini boshlang'ich holatga qaytarish uchun db.json faylini o'chiring.
+
+
+CHAPDAGI MENYU
+--------------
+Sichqoncha panel ustiga kelsa — ochiladi.
+Sichqoncha paneldan chiqsa — yopiladi.
+Lekin panelni bir marta BOSSANGIZ, u ochiq qoladi: endi uni faqat "X"
+tugmasi, ekranning boshqa joyini bosish yoki Esc yopadi.
+
+Kataloglar ro'yxati boshida yopiq turadi — ustiga bosilgandagina ochiladi.
+
+
+QR KODNI CHOP ETISH
+-------------------
+Qurilmalar ro'yxati -> uch nuqta -> "QR-kod" -> "Chop etish".
+
+Qog'ozga FAQAT QR kod chiqadi: ortiqcha hech narsa bosilmaydi.
+O'lchamini tanlash mumkin — 25 / 35 / 45 / 60 / 80 mm tayyor variantlari
+yoki slayder bilan 20 dan 120 mm gacha qo'lda.
+QR kod ostiga firma nomi va telefon raqami yoziladi.
+
+
+IKKI YANGI SAHIFA
+-----------------
+1) "Apparat monitoringi" — statistika sahifasi:
+   * yuqorida 5 ta filtr: Region, Tuman, Tashkilot, Klassifikatsiya,
+     Bo'lim, Punkt
+   * 4 ta ko'rsatkich: jami, ish holatida, ta'mirga muhtoj, yaroqsiz
+   * chapda uskunalar jadvali va "Xaritani ko'rsatish" tugmasi —
+     xaritada har bir uskuna holati bo'yicha rangli nuqta bo'lib chiqadi
+   * o'ngda doiraviy diagramma va yo'nalishlar kesimi
+
+2) "Qurilmalar ro'yxati" — to'liq reyestr:
+   * tezkor qidiruv: seriya raqami, inventar raqami, ishlab chiqarilgan
+     va o'rnatilgan sana
+   * "Qo'shimcha filtrlar": klassifikatsiya (3 bosqich), region, tuman,
+     tashkilot, mas'ul shaxs, ishlab chiqaruvchi mamlakati, UzASBO
+     raqami, xizmat muddati, holati
+   * har bir qatordagi uch nuqta tugmasi:
+       QR-kod  /  Ko'rish  /  O'zgarishlar tarixi  /  Tahrirlash
+   * "Export" va "Hisobotni yuklab olish" tugmalari FAQAT adminlarga
+     ko'rinadi va joriy filtrga mos hamma ma'lumotni Excelga yuklaydi
+
+
+O'ZGARISHLAR TARIXI
+-------------------
+Har bir tahrir qaysi maydon, nimadan nimaga, kim tomonidan va qachon
+o'zgartirilgani bilan yozib boriladi. QR orqali qilingan holat
+o'zgarishlari ham shu yerga tushadi.
+
+
+HUDUDLAR
+--------
+Endi butun O'zbekiston: 14 ta region (12 viloyat + Qoraqalpog'iston +
+Toshkent shahri), jami 205 ta tuman va shahar. Region tanlansa, tumanlar
+ro'yxati o'shanga moslashadi; ro'yxatda bo'lmasa "Boshqa — qo'lda
+kiritish" tanlanadi. Tashkilot nomi qo'lda yoziladi, lekin shu tumanda
+avval kiritilgan tashkilotlar taklif sifatida chiqadi.
+
+
+INTEGRATSIYA (boshqa sayt bilan bog'lash)
+-----------------------------------------
+Panel -> "Integratsiya". Har bir hamkor sayt uchun alohida API kalit
+yaratiladi. Kalit faqat bir marta ko'rsatiladi va bazada faqat hash
+holida saqlanadi.
+
+Ruxsatlar (scope) alohida tanlanadi:
+   catalog:read      katalog va apparatlarni o'qish
+   assets:read       monitoring reyestrini o'qish
+   manuals:read      yo'riqnomalarni o'qish
+   inquiries:write   buyurtma so'rovi yuborish
+
+Hamkor sayt shunday murojaat qiladi:
+
+   curl -H "X-API-Key: gmn_..." https://saytingiz.uz/api/v1/products
+
+Kalitni istalgan payt to'xtatish yoki o'chirish mumkin.
+Boshqa sayt BRAUZERIDAN chaqirish uchun serverdagi .env faylida
+ALLOWED_ORIGINS ga o'sha sayt manzilini qo'shing.
+
+
+SERVERGA JOYLASH
+----------------
+To'liq qo'llanma: deploy/SERVERGA-JOYLASH.md
+Nginx namunasi:   deploy/nginx.conf
+systemd xizmati:  deploy/goldmednova.service
+Sozlamalar:       .env.example -> .env
+
+MUHIM: production rejimida .env dagi JWT_SECRET bo'sh bo'lsa server
+ataylab ishga tushmaydi. Kalitni "npm run secret" yasab beradi.

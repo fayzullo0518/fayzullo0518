@@ -1,0 +1,44 @@
+# Fly.io — `fly launch --no-deploy` then `fly deploy`.
+#
+# Unlike the Render free plan this keeps a real disk, so the register and
+# the uploaded contracts survive a redeploy.
+app = "goldmednova"
+primary_region = "fra"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  NODE_ENV = "production"
+  HOST = "0.0.0.0"
+  PORT = "5175"
+  FORCE_HTTPS = "false"   # Fly's proxy already forces TLS
+  TRUST_PROXY = "1"
+  TOKEN_TTL = "12h"
+  DATA_DIR = "/data"
+
+# fly volumes create goldmednova_data --size 1 --region fra
+[[mounts]]
+  source = "goldmednova_data"
+  destination = "/data"
+
+[http_service]
+  internal_port = 5175
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 0
+
+  [http_service.http_options.response.headers]
+    Server = ""
+
+[[http_service.checks]]
+  interval = "30s"
+  timeout = "5s"
+  grace_period = "15s"
+  method = "GET"
+  path = "/api/health"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"

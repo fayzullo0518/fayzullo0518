@@ -1,0 +1,52 @@
+# ===========================================================
+#  Gold Med Nova — systemd xizmati
+#
+#  /etc/systemd/system/goldmednova.service ga qo‘ying, keyin:
+#     sudo systemctl daemon-reload
+#     sudo systemctl enable --now goldmednova
+#     sudo systemctl status goldmednova
+#     sudo journalctl -u goldmednova -f      # loglar
+# ===========================================================
+
+[Unit]
+Description=Gold Med Nova — tibbiy uskunalar sayti va monitoring tizimi
+Documentation=file:/var/www/goldmednova/README.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=goldmednova
+Group=goldmednova
+WorkingDirectory=/var/www/goldmednova
+EnvironmentFile=/var/www/goldmednova/.env
+ExecStart=/usr/bin/node server/index.js
+
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=goldmednova
+
+# --- himoya ------------------------------------------------
+# Jarayon faqat o‘z ma’lumot papkasiga yoza oladi.
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+RestrictRealtime=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+ReadWritePaths=/var/www/goldmednova/server/data
+
+# resurs chegaralari
+LimitNOFILE=8192
+MemoryMax=1G
+
+[Install]
+WantedBy=multi-user.target

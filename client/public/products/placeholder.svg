@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300" role="img" aria-label="No photo yet">
+  <rect width="400" height="300" fill="#F4F4F6"/>
+  <g fill="none" stroke="#B9BECC" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="128" y="104" width="144" height="104" rx="12"/>
+    <path d="M128 176l34-32 26 24 34-38 50 46"/>
+  </g>
+  <circle cx="168" cy="136" r="10" fill="#B9BECC"/>
+  <text x="200" y="242" text-anchor="middle" font-family="Inter, sans-serif" font-size="15" fill="#9AA1B2">
+    Photo coming soon
+  </text>
+</svg>

@@ -1,0 +1,366 @@
+/* ============================================================
+   Hero — full-viewport, minimal black & white, background video
+   mobile-first, 768px breakpoint
+   ============================================================ */
+
+.hero {
+  position: relative;
+  min-height: 100vh;
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  background: var(--hero-bg);
+  color: var(--hero-fg);
+  overflow: hidden;
+  isolation: isolate;
+}
+
+/* ---------- background video (z 0, behind everything) ---------- */
+.hero-video-wrap {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+.hero-video-inner {
+  position: relative;
+  width: 80%;
+  height: 80%;
+  overflow: hidden;
+}
+.hero-video-inner video,
+.hero-video-inner .hero-video-fallback {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+/* The supplied clip shows a robot hand. The brief asks for the MRI scanner to
+   take its place as the subject, so the video stays as a faint moving texture
+   behind the scanner rather than the focal point. */
+.hero-video-inner video {
+  filter: grayscale(1) contrast(1.05) brightness(1.08);
+  opacity: 0.13;
+  mask-image: radial-gradient(120% 80% at 50% 45%, #000 35%, transparent 78%);
+  -webkit-mask-image: radial-gradient(120% 80% at 50% 45%, #000 35%, transparent 78%);
+}
+.hero-video-fallback {
+  background:
+    radial-gradient(60% 60% at 30% 30%, rgba(59, 91, 255, 0.16), transparent 70%),
+    radial-gradient(50% 50% at 75% 65%, rgba(56, 214, 224, 0.18), transparent 70%),
+    var(--hero-bg);
+}
+:root[data-theme="dark"] .hero-video-inner video {
+  filter: grayscale(1) contrast(1.1) brightness(1.4);
+  opacity: 0.12;
+}
+
+@media (min-width: 768px) {
+  .hero-video-inner { width: 100%; height: 100%; }
+}
+
+/* ---------- fixed navbar (z 50) ---------- */
+.hero-nav {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px;
+  pointer-events: none;
+}
+.hero-nav > * { pointer-events: auto; }
+.hero-nav-left,
+.hero-nav-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  pointer-events: none;
+}
+.hero-nav-left > *,
+.hero-nav-right > * { pointer-events: auto; }
+
+@media (min-width: 768px) {
+  .hero-nav { padding: 24px 32px; gap: 16px; }
+  .hero-nav-left,
+  .hero-nav-right { gap: 14px; }
+}
+
+/* logo */
+.nm-logo { display: inline-flex; align-items: center; gap: 9px; }
+.nm-logo-mark {
+  flex: none;
+  display: block;
+  object-fit: contain;
+}
+
+/* the gilded mark needs a touch of lift on a dark ground */
+:root[data-theme='dark'] .nm-logo-mark {
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.45));
+}
+.nm-logo-text {
+  display: none;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+}
+@media (min-width: 768px) { .nm-logo-text { display: inline; } }
+
+/* menu button: dark pill + light circle + Plus icon */
+.hero-menu-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 36px;
+  padding: 4px 14px 4px 4px;
+  border-radius: 999px;
+  background: var(--hero-fg);
+  color: var(--hero-bg);
+  transition: transform 0.3s var(--ease), opacity 0.3s var(--ease);
+}
+.hero-menu-btn:hover { transform: translateY(-1px); }
+.hero-menu-dot {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--hero-bg);
+  color: var(--hero-fg);
+  display: grid;
+  place-items: center;
+  flex: none;
+  transition: transform 0.4s var(--ease);
+}
+.hero-menu-btn.is-open .hero-menu-dot { transform: rotate(135deg); }
+.hero-menu-label { font-size: 11px; font-weight: 500; letter-spacing: 0.01em; }
+
+@media (min-width: 768px) {
+  .hero-menu-btn { height: 40px; padding: 4px 16px 4px 4px; }
+  .hero-menu-dot { width: 32px; height: 32px; }
+}
+
+/* tags pill group */
+.hero-tags {
+  display: none;
+  align-items: center;
+  gap: 4px;
+  padding: 5px;
+  border-radius: 999px;
+  background: var(--hero-pill);
+}
+.hero-tags span {
+  padding: 5px 12px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--hero-fg);
+  white-space: nowrap;
+}
+.hero-tags span + span { background: var(--hero-bg); }
+@media (min-width: 768px) { .hero-tags { display: inline-flex; } }
+
+/* right pill */
+.hero-right-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px;
+  border-radius: 999px;
+  background: var(--hero-pill);
+}
+.hero-right-pill.has-label { padding-right: 14px; }
+.hero-grid-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--hero-fg);
+  color: var(--hero-bg);
+  display: grid;
+  place-items: center;
+  flex: none;
+  transition: transform 0.3s var(--ease);
+}
+.hero-grid-btn:hover { transform: rotate(45deg); }
+.hero-right-label {
+  display: none;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--hero-fg);
+  white-space: nowrap;
+}
+@media (min-width: 768px) {
+  .hero-right-pill { padding: 5px; }
+  .hero-right-pill.has-label { padding-right: 16px; }
+  .hero-grid-btn { width: 32px; height: 32px; }
+  .hero-right-label { display: inline; }
+}
+
+/* theme toggle sits in the nav */
+.hero-theme-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  flex: none;
+  background: var(--hero-pill);
+  color: var(--hero-fg);
+  transition: transform 0.3s var(--ease);
+}
+.hero-theme-btn:hover { transform: rotate(-20deg); }
+@media (min-width: 768px) { .hero-theme-btn { width: 32px; height: 32px; } }
+
+/* ---------- scroll-driven MRI scanner ---------- */
+.hero-scanner {
+  position: absolute;
+  z-index: 10;
+  left: 50%;
+  top: 46%;
+  width: min(88vw, 760px);
+  pointer-events: none;
+  will-change: transform, opacity;
+}
+.hero-scanner img {
+  width: 100%;
+  height: auto;
+  filter: drop-shadow(0 40px 60px rgba(11, 16, 32, 0.18));
+}
+:root[data-theme="dark"] .hero-scanner img {
+  filter: drop-shadow(0 40px 60px rgba(0, 0, 0, 0.7)) brightness(0.92) contrast(1.05);
+}
+@media (min-width: 768px) {
+  .hero-scanner { top: 44%; width: min(62vw, 900px); }
+}
+
+/* ---------- pinned footer content (z 30) ---------- */
+.hero-foot {
+  position: relative;
+  z-index: 30;
+  margin-top: auto;
+  background: var(--hero-fade);
+  padding: 90px 16px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 26px;
+}
+@media (min-width: 768px) {
+  .hero-foot {
+    flex-direction: row;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 40px;
+    padding: 130px 32px 34px;
+  }
+}
+
+.hero-sub {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 13px;
+  font-weight: 400;
+  color: color-mix(in srgb, var(--hero-fg) 55%, transparent);
+}
+.hero-sub .dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--hero-fg);
+  flex: none;
+}
+
+.hero-heading {
+  margin-top: 14px;
+  font-weight: 300;
+  font-size: clamp(2rem, 8vw, 4.5rem);
+  letter-spacing: -0.03em;
+  line-height: 1;
+}
+.hero-heading span { display: block; }
+@media (min-width: 768px) {
+  .hero-heading { font-size: clamp(2.5rem, 5.5vw, 4.5rem); }
+}
+
+.hero-cta { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 24px; }
+.hero-cta .btn { height: 40px; }
+.hero-cta-dark { background: var(--hero-fg); color: var(--hero-bg); }
+.hero-cta-ghost {
+  border: 1px solid color-mix(in srgb, var(--hero-fg) 35%, transparent);
+  background: transparent;
+  color: var(--hero-fg);
+}
+.hero-cta-ghost:hover { background: color-mix(in srgb, var(--hero-fg) 6%, transparent); }
+
+.hero-foot-tags { display: flex; flex-wrap: wrap; gap: 8px; }
+.hero-foot-tags span {
+  padding: 7px 14px;
+  border-radius: 999px;
+  background: var(--hero-bg);
+  border: 1px solid color-mix(in srgb, var(--hero-fg) 12%, transparent);
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--hero-fg);
+}
+
+/* ---------- overlay menu ---------- */
+.hero-menu-panel {
+  position: fixed;
+  inset: 0;
+  z-index: 49;
+  background: color-mix(in srgb, var(--hero-bg) 92%, transparent);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 90px 16px 40px;
+}
+@media (min-width: 768px) { .hero-menu-panel { padding: 120px 32px 60px; } }
+.hero-menu-list { display: flex; flex-direction: column; gap: 4px; }
+.hero-menu-list a {
+  font-weight: 300;
+  font-size: clamp(2rem, 9vw, 4rem);
+  letter-spacing: -0.03em;
+  line-height: 1.08;
+  color: var(--hero-fg);
+  opacity: 0.55;
+  transition: opacity 0.3s var(--ease), transform 0.3s var(--ease);
+}
+.hero-menu-list a:hover { opacity: 1; transform: translateX(10px); }
+.hero-menu-meta {
+  margin-top: 36px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+  font-size: 12px;
+  color: color-mix(in srgb, var(--hero-fg) 55%, transparent);
+}
+
+/* ---------- scroll hint ---------- */
+.hero-scrollhint {
+  position: absolute;
+  left: 50%;
+  bottom: 14px;
+  z-index: 31;
+  transform: translateX(-50%);
+  display: none;
+  align-items: center;
+  gap: 8px;
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--hero-fg) 40%, transparent);
+}
+@media (min-width: 1024px) { .hero-scrollhint { display: flex; } }
+.hero-scrollhint .bar {
+  width: 1px;
+  height: 26px;
+  background: linear-gradient(to bottom, currentColor, transparent);
+}

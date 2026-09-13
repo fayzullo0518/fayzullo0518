@@ -1,0 +1,36 @@
+# Render blueprint — https://render.com/docs/blueprint-spec
+#
+# Render → New → Blueprint → pick this repository. Everything below is
+# created for you; only ADMIN_PASSWORD has to be typed in by hand.
+services:
+  - type: web
+    name: goldmednova
+    runtime: docker
+    plan: free
+    region: frankfurt
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: HOST
+        value: 0.0.0.0
+      # Render terminates TLS in front of the app, so the app itself
+      # must not try to redirect to https a second time.
+      - key: FORCE_HTTPS
+        value: 'false'
+      - key: TRUST_PROXY
+        value: '1'
+      - key: TOKEN_TTL
+        value: 12h
+      # generated once by Render and never shown in the repository
+      - key: JWT_SECRET
+        generateValue: true
+      - key: ADMIN_USERNAME
+        value: fayzullo
+      # set this yourself in the dashboard — at least 12 characters
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: ALLOWED_ORIGINS
+        value: ''
