@@ -10,3 +10,4 @@ _*.log
 .env.local
 server/data/db.json.bak
 server/data/db.json.tmp
+.data/

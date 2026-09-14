@@ -16,6 +16,43 @@ yuklangan fayllar joyida qoldi.
 
 ---
 
+## 0. Eng tez yo'l: GitHub Codespaces
+
+Vaqtinchalik, global va **butun sayt ishlaydi** — admin panel, baza,
+50 MB gacha fayllar. Karta kerak emas, oyiga 60 soat bepul.
+
+1. Repozitoriyani oching: github.com/fayzullo0518/fayzullo0518
+2. Yashil **Code** tugmasi → **Codespaces** → **Create codespace**
+3. 2-3 daqiqa kuting — kutubxonalar o'rnatiladi, sayt quriladi va
+   o'zi ishga tushadi
+4. Pastdagi **PORTS** bo'limida `5175` qatorini toping →
+   **Forwarded Address** ustunidagi havolani nusxa oling
+
+Havola shunga o'xshash bo'ladi:
+`https://fuzzy-space-xxxx-5175.app.github.dev`
+
+Bu **internetdagi haqiqiy manzil** — telefondan ham, hamkasblaringiz
+ham ocha oladi.
+
+**Admin panel:** `<havola>/dev`
+**Login va parol:** kodspeys terminalida chiqadi, va `.env` faylida
+saqlanadi (git'ga tushmaydi).
+
+### Bilib qo'yish kerak
+
+* Port `public` qilib sozlangan, ya'ni havolani bilgan har kim saytni
+  ko'ra oladi. Admin panel baribir parol so'raydi.
+  Yopmoqchi bo'lsangiz: PORTS bo'limida o'ng tugma → Port Visibility →
+  Private.
+* 30 daqiqa tegilmasa kodspeys uxlaydi. Qayta ochsangiz uyg'onadi va
+  ma'lumotlar joyida qoladi (`.data` papkasida).
+* Bepul limit: oyiga 60 soat (2 yadroli mashinada) va 15 GB.
+  Limitni GitHub → Settings → Billing bo'limida ko'rasiz.
+* Bu **vaqtinchalik** yechim — ko'rsatish va sinash uchun. Doimiy ish
+  uchun quyidagi variantlardan birini oling.
+
+---
+
 ## A. Kartasiz: Neon + istalgan bepul host
 
 Ma'lumot Neon'da (bepul Postgres) yotadi, host esa faqat saytni

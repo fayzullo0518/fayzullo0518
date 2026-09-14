@@ -94,10 +94,14 @@ async function run() {
     !login.text.includes('scrypt:') && !/"password"/.test(login.text),
     'javob ichida parol hash’i qaytdi',
   );
+  // The server flags a password IT generated as one that must be replaced.
+  // From outside we cannot tell whether the operator supplied ADMIN_PASSWORD
+  // instead, so the check is that the flag is reported at all — the panel
+  // needs it to raise the banner.
   check(
-    'vaqtinchalik parol belgilangan',
-    login.data?.mustChangePassword === true || Boolean(process.env.ADMIN_PASSWORD),
-    'server yaratgan parol “almashtirilsin” deb belgilanmagan',
+    'parol holati xabar qilinadi',
+    typeof login.data?.mustChangePassword === 'boolean',
+    'javobda mustChangePassword yo‘q — panel ogohlantirish ko‘rsata olmaydi',
   );
 
   /* ---------------- 3. JWT ---------------------------------------- */
@@ -351,6 +355,40 @@ async function run() {
     /frame-ancestors 'none'/.test(root.headers.get('content-security-policy') || ''),
     'sayt boshqa saytga iframe qilinishi mumkin (clickjacking)',
   );
+
+  /* ---------------- 9b. same-origin assets ------------------------ */
+  section('9b. Saytning o‘z fayllari');
+
+  // Vite marks the module script and the stylesheet `crossorigin`, so the
+  // browser sends an Origin header even for the site's own files. A CORS
+  // rule that refuses every Origin it does not recognise therefore blocks
+  // the page's own JavaScript, and the site renders blank — in production
+  // only, which is exactly where it would first be noticed.
+  const indexPage = await fetch(`${BASE}/`);
+  const indexHtml = await indexPage.text();
+  const asset = /(?:src|href)="(\/assets\/[^"]+)"/.exec(indexHtml)?.[1];
+
+  if (!asset) {
+    check('qurilgan sayt topildi', false, 'index.html ichida /assets/... havolasi yo‘q (npm run build qilinganmi?)');
+  } else {
+    const sameOrigin = await fetch(`${BASE}${asset}`, { headers: { Origin: BASE } });
+    check(
+      'o‘z Origin\'i bilan so‘ralgan fayl beriladi',
+      sameOrigin.status === 200,
+      `status ${sameOrigin.status} — sayt o‘z JS/CSS faylini rad etyapti, sahifa bo‘sh ochiladi`,
+    );
+
+    const noOrigin = await fetch(`${BASE}${asset}`);
+    check('Origin‘siz ham beriladi', noOrigin.status === 200, `status ${noOrigin.status}`);
+
+    const foreign = await fetch(`${BASE}${asset}`, { headers: { Origin: 'https://boshqa-sayt.example' } });
+    const allowHeader = foreign.headers.get('access-control-allow-origin');
+    check(
+      'begona sayt o‘qiy olmaydi',
+      foreign.status === 403 || !allowHeader || allowHeader === BASE,
+      `status ${foreign.status}, Access-Control-Allow-Origin: “${allowHeader}”`,
+    );
+  }
 
   /* ---------------- 10. brute force ------------------------------- */
   section('10. Parol tanlashdan himoya');

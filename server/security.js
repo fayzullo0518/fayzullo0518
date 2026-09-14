@@ -55,21 +55,37 @@ const parseList = (value) =>
 /**
  * Same-origin in production unless ALLOWED_ORIGINS names the sites that may
  * call the API — that list is how a partner site is allowed to integrate.
+ *
+ * "Same-origin" has to be decided against the request, not against the Origin
+ * header alone. A browser sends an Origin header on a same-origin request too
+ * whenever the element is marked `crossorigin` — which Vite puts on the module
+ * script and the stylesheet it builds. Judging by "is there an Origin header"
+ * therefore refused the site its own JavaScript and CSS the moment production
+ * mode was switched on, and the page rendered blank.
  */
 export function corsMiddleware() {
   const allowed = parseList(process.env.ALLOWED_ORIGINS);
 
   if (!isProduction && allowed.length === 0) return cors();
 
-  return cors({
-    origin(origin, callback) {
-      // same-origin requests and server-to-server calls carry no Origin header
-      if (!origin) return callback(null, true);
-      if (allowed.includes(origin)) return callback(null, true);
-      return callback(new Error('CORS: bu manzilga ruxsat berilmagan'));
-    },
-    credentials: false,
-    maxAge: 86400,
+  const options = { credentials: false, maxAge: 86400 };
+
+  return cors((req, callback) => {
+    const origin = req.headers.origin;
+
+    // server-to-server calls and plain navigations carry no Origin at all
+    if (!origin) return callback(null, { ...options, origin: true });
+
+    // the site asking for its own files — behind a proxy the scheme the
+    // browser used arrives in X-Forwarded-Proto, so accept either
+    const host = req.headers.host;
+    const proto = req.headers['x-forwarded-proto'] || req.protocol;
+    if (host && (origin === `${proto}://${host}` || origin === `https://${host}` || origin === `http://${host}`)) {
+      return callback(null, { ...options, origin: true });
+    }
+
+    if (allowed.includes(origin)) return callback(null, { ...options, origin: true });
+    return callback(new Error('CORS: bu manzilga ruxsat berilmagan'));
   });
 }
 

@@ -1,0 +1,34 @@
+{
+  "name": "Gold Med Nova",
+  "image": "mcr.microsoft.com/devcontainers/javascript-node:22",
+
+  // o'rnatish va qurish — konteyner birinchi marta yaratilganda
+  "postCreateCommand": "bash .devcontainer/setup.sh",
+
+  // har safar kodspeys ochilganda saytni ishga tushiradi
+  "postAttachCommand": {
+    "server": "bash .devcontainer/start.sh"
+  },
+
+  "forwardPorts": [5175],
+  "portsAttributes": {
+    "5175": {
+      "label": "Gold Med Nova",
+      "onAutoForward": "openPreview",
+      // internetdagi har kim ocha oladi — telefon, boshqa kompyuter, hamkasblar
+      "visibility": "public"
+    }
+  },
+
+  "hostRequirements": {
+    "cpus": 2,
+    "memory": "8gb",
+    "storage": "32gb"
+  },
+
+  "customizations": {
+    "vscode": {
+      "extensions": ["dbaeumer.vscode-eslint"]
+    }
+  }
+}
