@@ -107,48 +107,72 @@ app.use(jsonParser('256kb'));
 
 /**
  * Uploaded files carry a generated UUID name, so nothing a caller sends can
- * steer the path. They are served as attachments-in-place with sniffing
- * disabled, and never executed.
+ * steer the path. They are served with sniffing disabled and never executed.
  *
- * Which route answers depends on the backend: express.static off the disk,
- * or a lookup in Postgres. Both answer at the same /uploads/<name> address,
- * so the URLs already stored in the database keep working either way.
+ * Access is split by what the file is:
+ *
+ *   rasm     — ochiq. QR stikerini skanerlagan shifokor uskunaning suratini
+ *              ko'ra olishi kerak, u tizimga kirmaydi.
+ *   hujjat   — faqat admin. Shartnoma va hisob-fakturada narx va imzo bor;
+ *              ilgari ular manzilni bilgan HAR KIMGA ochiq edi.
+ *
+ * Fayl turi yuklashda yozib qo'yiladi. Eski, turi noma'lum fayllar uchun
+ * kengaytmaga qarab hal qilinadi — rasm kengaytmasi bo'lsa ochiq, aks
+ * holda himoyalangan.
  */
 const UPLOAD_NAME = /^[0-9a-f-]{36}\.[a-z0-9]{1,5}$/i;
+const PUBLIC_EXT = new Set(['jpg', 'jpeg', 'png', 'webp', 'avif', 'gif', 'heic', 'svg']);
 
-app.get('/uploads/:name', async (req, res, next) => {
-  const store = getStorage();
-  if (!store || store.kind !== 'postgres') return next();
+/** what the registry says about this file, or null when it predates the registry */
+const fileRecord = (name) => readDb().files?.[name] || null;
 
+function isPublicFile(name) {
+  const record = fileRecord(name);
+  if (record) return record.kind === 'image';
+  return PUBLIC_EXT.has((name.split('.').pop() || '').toLowerCase());
+}
+
+app.get('/uploads/:name', auth(false), async (req, res, next) => {
   const { name } = req.params;
   if (!UPLOAD_NAME.test(name)) return res.status(404).end();
 
+  if (!isPublicFile(name)) {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Bu hujjatni ko‘rish uchun tizimga kiring' });
+    }
+    if (!['superadmin', 'admin', 'manager'].includes(req.user.role)) {
+      return res.status(403).json({ error: 'Bu hujjatga ruxsatingiz yo‘q' });
+    }
+  }
+
+  const store = getStorage();
   try {
-    const file = await store.getFile(name);
-    if (!file) return res.status(404).end();
-    res.setHeader('Content-Type', file.contentType || 'application/octet-stream');
+    const file = await store.files.get(name);
+    if (!file) return next();
+
+    const record = fileRecord(name);
+    res.setHeader('Content-Type', record?.contentType || file.contentType || 'application/octet-stream');
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('Content-Disposition', 'inline');
-    res.setHeader('Cache-Control', 'public, max-age=604800, immutable');
+    // a private document must never be kept by a shared cache
+    res.setHeader(
+      'Cache-Control',
+      isPublicFile(name) ? 'public, max-age=604800, immutable' : 'private, no-store',
+    );
     return res.send(file.buffer);
   } catch (err) {
-    return next(err);
+    // the store held bytes that would not decrypt: either the key changed or
+    // somebody edited the object where it was stored. Both are worth shouting
+    // about rather than returning a blank "server error".
+    console.error('[uploads] o‘qib bo‘lmadi:', name, '—', err.message);
+    return res.status(500).json({
+      error: 'Faylni ochib bo‘lmadi — kalit noto‘g‘ri yoki fayl o‘zgartirilgan',
+    });
   }
 });
 
-app.use(
-  '/uploads',
-  express.static(UPLOAD_DIR, {
-    maxAge: '7d',
-    index: false,
-    dotfiles: 'deny',
-    fallthrough: false,
-    setHeaders: (res) => {
-      res.setHeader('X-Content-Type-Options', 'nosniff');
-      res.setHeader('Content-Disposition', 'inline');
-    },
-  }),
-);
+// anything that reached here is not a file we know about
+app.use('/uploads', (_req, res) => res.status(404).end());
 
 /* ------------------------------------------------------------------ */
 /* company / contact details                                          */
@@ -871,6 +895,24 @@ app.post('/api/admin/notifications/read', auth(), (req, res) =>
 /* admin — image uploads                                              */
 /* ------------------------------------------------------------------ */
 
+/**
+ * Notes what a stored file is, so /uploads can tell a public device photo
+ * from a contract that must not leave the panel. Also an audit trail: who
+ * uploaded what, and when.
+ */
+function recordFile(name, kind, contentType, size, user) {
+  const db = readDb();
+  db.files ??= {};
+  db.files[name] = {
+    kind: kind === 'doc' ? 'doc' : 'image',
+    contentType,
+    size,
+    by: user?.name || null,
+    at: new Date().toISOString(),
+  };
+  writeDb(db);
+}
+
 const MIME_EXT = {
   'image/jpeg': 'jpg',
   'image/png': 'png',
@@ -893,7 +935,7 @@ app.post(
   if (!ext) return res.status(400).json({ error: 'Use a JPEG, PNG, WebP or AVIF image' });
 
   const buffer = Buffer.from(match[2], 'base64');
-  const imageCap = Math.min(6 * 1024 * 1024, getStorage().maxFileBytes);
+  const imageCap = Math.min(6 * 1024 * 1024, getStorage().files.maxBytes);
   if (buffer.length > imageCap) {
     return res.status(413).json({
       error: `Rasm ${Math.floor(imageCap / (1024 * 1024))} MB dan katta bo‘lmasligi kerak`,
@@ -906,12 +948,14 @@ app.post(
   }
 
   const filename = `${crypto.randomUUID()}.${ext}`;
+  const contentType = match[1].toLowerCase();
   try {
-    await getStorage().putFile(filename, buffer, match[1].toLowerCase());
+    await getStorage().files.put(filename, buffer, contentType);
   } catch (err) {
     console.error('[uploads]', err);
     return res.status(500).json({ error: 'Rasmni saqlab bo‘lmadi' });
   }
+  recordFile(filename, 'image', contentType, buffer.length, req.user);
   res.status(201).json({ url: `/uploads/${filename}`, bytes: buffer.length });
   },
 );
@@ -968,7 +1012,7 @@ app.post(
 
     // the ceiling is whatever the backend can take: a mounted disk swallows
     // 50 MB happily, a row in a free Postgres plan should not
-    const cap = Math.min(MAX_ASSET_IMAGE_BYTES, getStorage().maxFileBytes);
+    const cap = Math.min(MAX_ASSET_IMAGE_BYTES, getStorage().files.maxBytes);
     if (buffer.length > cap) {
       return res.status(413).json({
         error: `Fayl ${Math.floor(cap / (1024 * 1024))} MB dan katta bo‘lmasligi kerak`,
@@ -979,12 +1023,14 @@ app.post(
     }
 
     const filename = `${crypto.randomUUID()}.${ext}`;
+    const contentType = EXT_MIME[ext] || 'application/octet-stream';
     try {
-      await getStorage().putFile(filename, buffer, EXT_MIME[ext] || 'application/octet-stream');
+      await getStorage().files.put(filename, buffer, contentType);
     } catch (err) {
       console.error('[uploads]', err);
       return res.status(500).json({ error: 'Faylni saqlab bo‘lmadi' });
     }
+    recordFile(filename, kind, contentType, buffer.length, req.user);
     res.status(201).json({
       url: `/uploads/${filename}`,
       name: original,
@@ -1184,6 +1230,10 @@ const start = async () => {
     console.log(`  Rejim              →  ${isProduction ? 'production' : 'development'}`);
     console.log(
       `  Ma'lumotlar        →  ${store.kind === 'postgres' ? 'Postgres' : 'disk'} · ${store.describe}`,
+    );
+    console.log(
+      `  Fayllar            →  ${store.files.describe}` +
+        `${store.files.encrypted ? ' · shifrlangan' : ''}`,
     );
     if (store.kind === 'disk' && !process.env.DATA_DIR) {
       console.warn(

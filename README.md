@@ -98,7 +98,18 @@ With `DATABASE_URL` the host itself can be completely disposable, which is
 what free tiers are. Set neither and the server prints a warning at boot,
 because on a cloud host that means everything is lost on the next restart.
 
-See [DEPLOY.md](DEPLOY.md).
+Uploaded photographs and contracts are what actually fill a disk, and disk is
+the expensive part of a VPS. Point `S3_BUCKET` at cheap object storage — MinIO
+on a second, cheap server, or R2, or B2 — and they leave the main server
+entirely. Set `FILE_ENCRYPTION_KEY` and each file is encrypted with AES-256-GCM
+before it goes, so the storage host holds bytes it cannot read.
+
+Access follows what the file is: device photographs stay public because the
+doctor scanning the QR sticker is not signed in, while contracts and invoices
+require an administrator session. They used to be readable by anyone who knew
+the URL.
+
+See [DEPLOY.md](DEPLOY.md) and [FAYL-OMBORI.md](FAYL-OMBORI.md).
 
 The API enforces this, not just the UI: `requireRole('superadmin')` guards team management,
 `requireRole('superadmin', 'admin')` guards catalogues, devices, manuals, uploads and the

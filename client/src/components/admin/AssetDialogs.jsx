@@ -13,7 +13,7 @@ import {
   Check,
 } from 'lucide-react';
 
-import { api } from '../../lib/api.js';
+import { api, downloadFile } from '../../lib/api.js';
 import { useI18n } from '../../lib/i18n.jsx';
 import { formatBytes } from '../../lib/reference.js';
 import { useContacts } from '../../lib/contact.js';
@@ -149,7 +149,14 @@ export function AssetViewModal({ asset, canEdit, onClose, onEdit, onHistory }) {
               <span>{t('mon.fileAttached')}</span>
               <div>
                 {files.map((f) => (
-                  <a key={f.url} href={f.url} target="_blank" rel="noreferrer" download={f.name}>
+                  <a
+                    key={f.url}
+                    href={f.url}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      downloadFile(f.url, f.name).catch((err) => window.alert(err.message));
+                    }}
+                  >
                     <FileText size={13} /> {f.name} <em>{formatBytes(f.size)}</em>
                   </a>
                 ))}

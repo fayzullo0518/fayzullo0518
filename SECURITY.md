@@ -13,7 +13,7 @@ DATA_DIR=/tmp/gmn-test JWT_SECRET=$(npm run --silent secret) npm start
 CHECK_PASS='<jurnaldagi parol>' npm run security:check
 ```
 
-53 ta tekshiruv o'tishi kerak. Bittasi yiqilsa — nima buzilganini va
+62 ta tekshiruv o‘tishi kerak. Bittasi yiqilsa — nima buzilganini va
 buzg'unchi undan nima yutishini yozib beradi.
 
 ## Nima tuzatilgan
@@ -61,7 +61,27 @@ server oxirgi o'zgarishni bazaga yozib ulguradi.
 
 Hech biri berilmasa server ishga tushishda qizil ogohlantirish chiqaradi.
 
-### 4. Baza yozuvining atomik emasligi — **yuqori**
+### 4. Shartnoma va hisob-fakturalar hammaga ochiq edi — **kritik**
+
+Yuklangan fayllar `/uploads/<uuid>.pdf` manzilida **hech qanday tekshiruvsiz**
+berilardi. Manzilni bilgan har qanday odam — tizimga kirmasdan, parolsiz —
+shartnomani, hisob-fakturani va undagi narxlarni yuklab olardi.
+
+Buni sinab ko'rsatdim: admin sifatida shartnoma yukladim, keyin tokensiz
+o'sha manzilga murojaat qildim — fayl to'liq qaytdi.
+
+Endi fayl turi yuklashda yozib qo'yiladi va kirish shunga qarab beriladi:
+
+| Fayl | Kim ocha oladi |
+|---|---|
+| Uskuna rasmi | hamma — QR stikerini skanerlagan shifokor tizimga kirmaydi |
+| Shartnoma, hisob-faktura | faqat superadmin, admin, menejer |
+
+Hujjatlar `Cache-Control: private, no-store` bilan beriladi, ya'ni oraliq
+keshlar ularni saqlab qolmaydi. Turi noma'lum eski fayllar uchun
+kengaytmaga qarab hal qilinadi — rasm bo'lmasa, himoyalanadi.
+
+### 5. Baza yozuvining atomik emasligi — **yuqori**
 
 `db.json` to'g'ridan-to'g'ri ustiga yozilardi. Yozish o'rtasida server
 o'chsa, fayl yarim qolardi; keyingi ishga tushishda `readDb()` uni o'qiy
@@ -72,7 +92,7 @@ Endi: vaqtinchalik faylga yoziladi → eskisi `.bak` ga ko'chiriladi →
 keyin o'rniga qo'yiladi. `db.json` buzilsa `.bak` dan tiklanadi. Fayl
 huquqi `0600`.
 
-### 5. Yetishmayotgan rol tekshiruvlari — **yuqori**
+### 6. Yetishmayotgan rol tekshiruvlari — **yuqori**
 
 Bu nuqtalarda faqat "kirgan bo'lsa bo'ldi" tekshiruvi bor edi, ya'ni
 `viewer` (faqat ko'rish) hisobi ham ularga yeta olardi:
@@ -87,7 +107,7 @@ Bu nuqtalarda faqat "kirgan bo'lsa bo'ldi" tekshiruvi bor edi, ya'ni
 Birinchisi eng muhimi: jamoa ro'yxatida hamkasblarning e-mail va telefon
 raqamlari bor.
 
-### 6. Token (JWT) mustahkamlangan — **o'rta**
+### 7. Token (JWT) mustahkamlangan — **o'rta**
 
 * `algorithms: ['HS256']` qattiq belgilangan — boshqa (zaifroq) algoritm
   bilan yasalgan token qabul qilinmaydi;
@@ -97,7 +117,7 @@ raqamlari bor.
   almashtirilgandan keyin ham 12 soat amal qilardi;
 * tokendagi rol emas, bazadagi rol ishlatiladi.
 
-### 7. Parol hash'lash — **o'rta**
+### 8. Parol hash'lash — **o'rta**
 
 `scryptSync` → asinxron `crypto.scrypt`, `N` 16384 dan 32768 ga
 ko'tarildi, parametrlar hash bilan birga saqlanadi (kelajakda oshirish
@@ -106,13 +126,13 @@ to'xtatib turardi — bu o'z-o'zidan DoS vektori edi.
 
 Eski formatdagi hash'lar ham o'qiladi, ya'ni mavjud baza ishlayveradi.
 
-### 8. Hisob nomini aniqlab olish — **past**
+### 9. Hisob nomini aniqlab olish — **past**
 
 Login topilmasa parol umuman tekshirilmasdi, javob tezroq qaytardi —
 shu farq orqali qaysi loginlar mavjudligini bilib olish mumkin edi. Endi
 mavjud bo'lmagan login uchun ham xuddi shuncha hisob-kitob bajariladi.
 
-### 9. Ochiq yozuv nuqtalari — **yuqori**
+### 10. Ochiq yozuv nuqtalari — **yuqori**
 
 `POST /api/inquiries` (buyurtma formasi) faqat umumiy API cheklovi ostida
 edi: bitta IP 15 daqiqada 1200 ta yozuv qo'sha olardi, har biri butun
@@ -121,23 +141,44 @@ bazani diskka qayta yozardi. Endi soatiga 8 ta.
 Hamkor API'sining "requests" hisoblagichi ham har so'rovda butun bazani
 diskka yozardi — endi 30 soniyada bir marta yoziladi.
 
-### 10. Fayl yuklash — **o'rta**
+### 11. Fayl yuklash — **o'rta**
 
 Ilgari faqat fayl nomining kengaytmasi tekshirilardi. Endi rasm
 fayllarining birinchi baytlari ham tekshiriladi (JPEG, PNG, GIF, BMP,
 WebP, AVIF, HEIC imzolari) — `.jpg` deb nomlangan HTML yoki skript
 saqlanmaydi. SVG umuman qabul qilinmaydi (u XSS uchun klassik vektor).
 
-### 11. Xato javoblari — **o'rta**
+### 12. Xato javoblari — **o'rta**
 
 Har qanday xato 500 qaytarardi — hajmi katta so'rov ham, CORS rad etishi
 ham, noto'g'ri JSON ham. Endi to'g'ri kod qaytadi (413 / 400 / 403), va
 ichki xabar hech qachon tashqariga chiqmaydi.
 
-### 12. Parol siyosati
+### 13. Parol siyosati
 
 Kamida 12 belgi (ilgari 10), harf va raqam majburiy, ichida login nomi
 bo'lmasligi kerak, kamida 5 xil belgi, ommabop parollar ro'yxati kengaydi.
+
+## Fayllar alohida omborda va shifrlangan
+
+Uskuna rasmlari va shartnomalar eng ko'p joy egallaydi, VPS diski esa eng
+qimmat gigabayt. Shuning uchun fayllarni asosiy serverdan ajratib, arzon
+S3'ga mos omborga chiqarish mumkin (`S3_BUCKET` va boshqalar). Baza va
+saytning o'zi asosiy serverda qoladi.
+
+`FILE_ENCRYPTION_KEY` berilsa, har bir fayl asosiy serverdan **chiqishidan
+oldin** AES-256-GCM bilan shifrlanadi:
+
+* ombor serveriga kirgan buzg'unchi `GMN1` degan belgidan keyin tasodifiy
+  baytlarni ko'radi — shartnoma matnini o'qib bo'lmaydi;
+* fayl omborda o'zgartirilsa, GCM buni darrov sezadi va server faylni
+  bermaydi (sinab ko'rildi: bitta bayt o'zgartirilganda aniqlandi);
+* kalit faqat asosiy serverda turadi — ombor xizmatida emas.
+
+Ya'ni ombor serverini butunlay boshqa, arzon joyga qo'ysangiz ham, u
+yerdagi ma'lumot o'qilmaydi.
+
+**Kalitni yo'qotmang.** Yo'qolsa fayllarni hech kim ocha olmaydi.
 
 ## Ilgaridan bor va joyida bo'lgan himoya
 

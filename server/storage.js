@@ -18,17 +18,7 @@
  */
 import fs from 'node:fs';
 import path from 'node:path';
-
-const MB = 1024 * 1024;
-
-/** Postgres'da fayl bazada yotadi, shuning uchun cheklov quyiroq */
-const DEFAULT_PG_LIMIT_MB = 10;
-const DEFAULT_DISK_LIMIT_MB = 50;
-
-const limitFromEnv = (fallback) => {
-  const value = Number(process.env.MAX_UPLOAD_MB);
-  return (Number.isFinite(value) && value > 0 ? value : fallback) * MB;
-};
+import { createFileStore } from './filestore.js';
 
 /* ------------------------------------------------------------------ */
 /* disk                                                                */
@@ -47,7 +37,7 @@ function diskStorage(dataDir) {
     kind: 'disk',
     describe: dataDir,
     uploadDir,
-    maxFileBytes: limitFromEnv(DEFAULT_DISK_LIMIT_MB),
+    pool: null,
 
     async init() {
       fs.mkdirSync(uploadDir, { recursive: true });
@@ -79,18 +69,6 @@ function diskStorage(dataDir) {
       fs.writeFileSync(tmpFile, JSON.stringify(doc, null, 2), { encoding: 'utf8', mode: 0o600 });
       if (fs.existsSync(stateFile)) fs.copyFileSync(stateFile, bakFile);
       fs.renameSync(tmpFile, stateFile);
-    },
-
-    async putFile(name, buffer) {
-      fs.mkdirSync(uploadDir, { recursive: true });
-      fs.writeFileSync(path.join(uploadDir, name), buffer);
-    },
-
-    // served by express.static, so this is only a fallback path
-    async getFile(name) {
-      const file = path.join(uploadDir, name);
-      if (!fs.existsSync(file)) return null;
-      return { buffer: fs.readFileSync(file), contentType: 'application/octet-stream' };
     },
 
     async close() {},
@@ -139,7 +117,7 @@ async function postgresStorage(url) {
     kind: 'postgres',
     describe: url.replace(/\/\/[^@]*@/, '//***@'),
     uploadDir: null,
-    maxFileBytes: limitFromEnv(DEFAULT_PG_LIMIT_MB),
+    pool,
 
     async init() {
       // one row holds the whole document; files get a row each
@@ -149,15 +127,6 @@ async function postgresStorage(url) {
           doc        jsonb NOT NULL,
           updated_at timestamptz NOT NULL DEFAULT now(),
           CONSTRAINT gmn_state_single_row CHECK (id = 1)
-        )
-      `);
-      await pool.query(`
-        CREATE TABLE IF NOT EXISTS gmn_files (
-          name         text PRIMARY KEY,
-          content_type text NOT NULL,
-          size         integer NOT NULL,
-          bytes        bytea NOT NULL,
-          created_at   timestamptz NOT NULL DEFAULT now()
         )
       `);
     },
@@ -173,26 +142,6 @@ async function postgresStorage(url) {
          ON CONFLICT (id) DO UPDATE SET doc = EXCLUDED.doc, updated_at = now()`,
         [JSON.stringify(doc)],
       );
-    },
-
-    async putFile(name, buffer, contentType = 'application/octet-stream') {
-      await pool.query(
-        `INSERT INTO gmn_files (name, content_type, size, bytes) VALUES ($1, $2, $3, $4)
-         ON CONFLICT (name) DO UPDATE
-           SET content_type = EXCLUDED.content_type,
-               size = EXCLUDED.size,
-               bytes = EXCLUDED.bytes`,
-        [name, contentType, buffer.length, buffer],
-      );
-    },
-
-    async getFile(name) {
-      const { rows } = await pool.query(
-        'SELECT bytes, content_type FROM gmn_files WHERE name = $1',
-        [name],
-      );
-      if (!rows.length) return null;
-      return { buffer: rows[0].bytes, contentType: rows[0].content_type };
     },
 
     async close() {
@@ -211,5 +160,10 @@ export async function createStorage(dataDir) {
   const url = String(process.env.DATABASE_URL || '').trim();
   const storage = url ? await postgresStorage(url) : diskStorage(dataDir);
   await storage.init();
+
+  // Files are chosen separately from the database on purpose: the expensive
+  // gigabytes can sit on cheap object storage while the records stay here.
+  storage.files = await createFileStore(dataDir, storage.pool || null);
+
   return storage;
 }

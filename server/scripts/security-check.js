@@ -252,6 +252,81 @@ async function run() {
   });
   check('haqiqiy PNG qabul qilindi', good.status === 201, `status ${good.status} — to‘g‘ri rasm ham o‘tmadi`);
 
+  /* ---------------- 8b. document privacy -------------------------- */
+  section('8b. Hujjatlar maxfiyligi');
+
+  // a contract carries prices and signatures; it must never be readable by
+  // anyone who merely knows the address
+  const contract = Buffer.from('%PDF-1.4\nMAXFIY SHARTNOMA — 250 000 000\n');
+  const up = await fetch(`${BASE}/api/admin/files?kind=doc&name=shartnoma.pdf`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/pdf' },
+    body: contract,
+  });
+  const upData = await up.json().catch(() => null);
+  check('shartnoma yuklandi', up.status === 201, `status ${up.status}`);
+
+  if (upData?.url) {
+    const anon = await call(upData.url);
+    check(
+      'shartnoma tokensiz OCHILMAYDI',
+      anon.status === 401,
+      `status ${anon.status} — manzilni bilgan HAR KIM shartnomani o‘qiy oladi`,
+    );
+    check(
+      'javobda shartnoma matni yo‘q',
+      !anon.text.includes('MAXFIY SHARTNOMA'),
+      'hujjat tarkibi tokensiz qaytdi',
+    );
+
+    const mine = await call(upData.url, { token });
+    check('admin shartnomani ocha oladi', mine.status === 200, `status ${mine.status}`);
+    check(
+      'admin to‘g‘ri tarkibni oladi',
+      mine.text.includes('MAXFIY SHARTNOMA'),
+      'shifr ochilmadi yoki boshqa fayl qaytdi',
+    );
+
+    const cache = mine.headers.get('cache-control') || '';
+    check(
+      'hujjat kesh‘ga yozilmaydi',
+      /no-store|private/.test(cache),
+      `Cache-Control: “${cache}” — umumiy kesh hujjatni saqlab qolishi mumkin`,
+    );
+
+    if (vToken) {
+      const asViewer = await call(upData.url, { token: vToken });
+      check(
+        'kuzatuvchi shartnomani ocha olmaydi',
+        asViewer.status === 403,
+        `status ${asViewer.status}`,
+      );
+    }
+  }
+
+  // a device photo stays open: the doctor scanning the QR sticker is not
+  // signed in and still has to see which machine it is
+  const photo = Buffer.concat([
+    Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+    Buffer.alloc(64),
+  ]).toString('base64');
+  const imgRes = await call('/api/admin/uploads', {
+    method: 'POST',
+    token,
+    body: { dataUrl: `data:image/png;base64,${photo}` },
+  });
+  if (imgRes.data?.url) {
+    const openImg = await call(imgRes.data.url);
+    check(
+      'uskuna rasmi QR uchun ochiq qoladi',
+      openImg.status === 200,
+      `status ${openImg.status} — QR sahifasi rasmni ko‘rsata olmaydi`,
+    );
+  }
+
+  const ghost = await call('/uploads/00000000-0000-0000-0000-000000000000.pdf', { token });
+  check('mavjud bo‘lmagan fayl: 404', ghost.status === 404, `status ${ghost.status}`);
+
   /* ---------------- 9. security headers --------------------------- */
   section('9. HTTP sarlavhalari');
 

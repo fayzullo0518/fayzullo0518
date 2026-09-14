@@ -219,6 +219,7 @@ async function defaultDb() {
     apiKeys: [],           // integration keys handed to partner sites
     contact: null,         // contact page overrides
     productMeta: {},
+    files: {},           // what each uploaded file is: photo or document
     activity: [],
   };
 }
@@ -240,6 +241,7 @@ function fillMissingCollections(db) {
   db.apiKeys ??= [];
   if (db.contact === undefined) db.contact = null;
   db.productMeta ??= {};
+  db.files ??= {};
   db.inquiries ??= [];
   db.activity ??= [];
   db.users ??= [];

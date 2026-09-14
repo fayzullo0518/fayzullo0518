@@ -107,12 +107,16 @@ export async function uploadFile(file, kind = 'image') {
 }
 
 /**
- * Fetch a file that needs the bearer token (the Excel exports) and hand it to
- * the browser as a download — an ordinary link cannot carry the header.
+ * Fetch a file that needs the bearer token and hand it to the browser as a
+ * download — an ordinary link cannot carry the header.
+ *
+ * Used for the Excel exports (paths under /api) and for uploaded contracts
+ * and invoices (paths under /uploads, which are no longer world-readable).
  */
 export async function downloadFile(path, fallbackName) {
   const token = getToken();
-  const res = await fetch(`/api${path}`, {
+  const url = path.startsWith('/uploads/') ? path : `/api${path}`;
+  const res = await fetch(url, {
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   });
   if (!res.ok) {
@@ -128,12 +132,12 @@ export async function downloadFile(path, fallbackName) {
   const disposition = res.headers.get('Content-Disposition') || '';
   const match = /filename="([^"]+)"/.exec(disposition);
   const blob = await res.blob();
-  const url = URL.createObjectURL(blob);
+  const href = URL.createObjectURL(blob);
   const link = document.createElement('a');
-  link.href = url;
+  link.href = href;
   link.download = match?.[1] || fallbackName;
   document.body.appendChild(link);
   link.click();
   link.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 2000);
+  setTimeout(() => URL.revokeObjectURL(href), 60_000);
 }

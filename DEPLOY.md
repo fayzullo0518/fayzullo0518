@@ -99,6 +99,14 @@ uyg'otadi. Disk to'xtagan paytda ham joyida turadi.
 
 ---
 
+## Fayllarni arzonlashtirish
+
+Uskuna rasmlari va shartnomalar diskning eng katta qismini egallaydi, disk
+esa VPS'ning eng qimmat qismi. Ularni alohida arzon omborga chiqarish
+mumkin — baza va sayt asosiy serverda qoladi.
+
+To'liq yo'riqnoma: **[FAYL-OMBORI.md](FAYL-OMBORI.md)**
+
 ## C. O'z serveringiz (VPS)
 
 `deploy/SERVERGA-JOYLASH.md` da nginx va systemd bilan to'liq yo'riqnoma.

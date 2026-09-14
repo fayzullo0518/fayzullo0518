@@ -9,7 +9,8 @@
     "build": "npm --prefix client run build",
     "start": "node server/index.js",
     "secret": "node server/scripts/secret.js",
-    "security:check": "node server/scripts/security-check.js"
+    "security:check": "node server/scripts/security-check.js",
+    "secret:files": "node server/scripts/secret-files.js"
   },
   "devDependencies": {
     "concurrently": "^9.1.2"

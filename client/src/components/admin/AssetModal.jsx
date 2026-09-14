@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 
 import MapPicker from './MapPicker.jsx';
-import { api, uploadFile } from '../../lib/api.js';
+import { api, uploadFile, downloadFile } from '../../lib/api.js';
 import { useI18n } from '../../lib/i18n.jsx';
 import { useReference, formatBytes } from '../../lib/reference.js';
 import { qrUrl } from '../../lib/routes.js';
@@ -167,7 +167,14 @@ function DocumentField({ label, file, onFile }) {
         {file && (
           <span className="as-doc-chip">
             <FileText size={13} />
-            <a href={file.url} target="_blank" rel="noreferrer" download={file.name}>
+            <a
+              href={file.url}
+              onClick={(e) => {
+                // documents are behind the session now — fetch with the token
+                e.preventDefault();
+                downloadFile(file.url, file.name).catch((err) => window.alert(err.message));
+              }}
+            >
               {file.name}
             </a>
             <em>{formatBytes(file.size)}</em>
