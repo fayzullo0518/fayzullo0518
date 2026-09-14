@@ -1,7 +1,7 @@
-# Fly.io — `fly launch --no-deploy` then `fly deploy`.
+# Fly.io — `fly launch --no-deploy` keyin `fly deploy`.
 #
-# Unlike the Render free plan this keeps a real disk, so the register and
-# the uploaded contracts survive a redeploy.
+# Bu yerda haqiqiy disk bor, shuning uchun baza ham, 50 MB gacha rasm va
+# shartnomalar ham to'g'ridan-to'g'ri diskda yotadi — tashqi baza kerak emas.
 app = "goldmednova"
 primary_region = "fra"
 
@@ -12,10 +12,11 @@ primary_region = "fra"
   NODE_ENV = "production"
   HOST = "0.0.0.0"
   PORT = "5175"
-  FORCE_HTTPS = "false"   # Fly's proxy already forces TLS
+  FORCE_HTTPS = "false"   # Fly proksisi HTTPS'ni o'zi majburlaydi
   TRUST_PROXY = "1"
   TOKEN_TTL = "12h"
   DATA_DIR = "/data"
+  MAX_UPLOAD_MB = "50"
 
 # fly volumes create goldmednova_data --size 1 --region fra
 [[mounts]]
@@ -35,7 +36,7 @@ primary_region = "fra"
 [[http_service.checks]]
   interval = "30s"
   timeout = "5s"
-  grace_period = "15s"
+  grace_period = "20s"
   method = "GET"
   path = "/api/health"
 

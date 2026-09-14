@@ -84,6 +84,22 @@ can sign in as them until the super admin sets a password from Team. Set
 See [SECURITY.md](SECURITY.md) for the full picture and `npm run security:check`
 to verify it.
 
+## Where the data is kept
+
+The register is only useful if what you type into it is still there tomorrow.
+Two backends, picked by the environment:
+
+| Set this | Data lives in | Uploads up to |
+| --- | --- | --- |
+| `DATABASE_URL` | Postgres (Neon's free tier needs no card) | 10 MB |
+| `DATA_DIR` | that folder — put a volume on it | 50 MB |
+
+With `DATABASE_URL` the host itself can be completely disposable, which is
+what free tiers are. Set neither and the server prints a warning at boot,
+because on a cloud host that means everything is lost on the next restart.
+
+See [DEPLOY.md](DEPLOY.md).
+
 The API enforces this, not just the UI: `requireRole('superadmin')` guards team management,
 `requireRole('superadmin', 'admin')` guards catalogues, devices, manuals, uploads and the
 contact page.

@@ -38,6 +38,8 @@ import {
   publicUser,
   logActivity,
   generatedPasswords,
+  getStorage,
+  closeDb,
   DATA_DIR,
   UPLOAD_DIR,
 } from './db.js';
@@ -96,8 +98,6 @@ const JWT_SECRET = resolveJwtSecret();
 const TOKEN_TTL = process.env.TOKEN_TTL || '12h';
 const JWT_ISSUER = 'gold-med-nova';
 
-fs.mkdirSync(UPLOAD_DIR, { recursive: true });
-
 const app = express();
 
 applyBaseSecurity(app);
@@ -105,13 +105,44 @@ app.use('/api', apiLimiter);
 // small by default — the two upload routes raise their own ceiling
 app.use(jsonParser('256kb'));
 
-// uploaded files are served with a UUID name and never executed
+/**
+ * Uploaded files carry a generated UUID name, so nothing a caller sends can
+ * steer the path. They are served as attachments-in-place with sniffing
+ * disabled, and never executed.
+ *
+ * Which route answers depends on the backend: express.static off the disk,
+ * or a lookup in Postgres. Both answer at the same /uploads/<name> address,
+ * so the URLs already stored in the database keep working either way.
+ */
+const UPLOAD_NAME = /^[0-9a-f-]{36}\.[a-z0-9]{1,5}$/i;
+
+app.get('/uploads/:name', async (req, res, next) => {
+  const store = getStorage();
+  if (!store || store.kind !== 'postgres') return next();
+
+  const { name } = req.params;
+  if (!UPLOAD_NAME.test(name)) return res.status(404).end();
+
+  try {
+    const file = await store.getFile(name);
+    if (!file) return res.status(404).end();
+    res.setHeader('Content-Type', file.contentType || 'application/octet-stream');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('Content-Disposition', 'inline');
+    res.setHeader('Cache-Control', 'public, max-age=604800, immutable');
+    return res.send(file.buffer);
+  } catch (err) {
+    return next(err);
+  }
+});
+
 app.use(
   '/uploads',
   express.static(UPLOAD_DIR, {
     maxAge: '7d',
     index: false,
     dotfiles: 'deny',
+    fallthrough: false,
     setHeaders: (res) => {
       res.setHeader('X-Content-Type-Options', 'nosniff');
       res.setHeader('Content-Disposition', 'inline');
@@ -853,7 +884,7 @@ app.post(
   auth(),
   requireRole('superadmin', 'admin'),
   jsonParser('9mb'),
-  (req, res) => {
+  async (req, res) => {
   const { dataUrl } = req.body || {};
   const match = /^data:([\w/+.-]+);base64,(.+)$/s.exec(String(dataUrl || ''));
   if (!match) return res.status(400).json({ error: 'Send the image as a base64 data URL' });
@@ -862,8 +893,11 @@ app.post(
   if (!ext) return res.status(400).json({ error: 'Use a JPEG, PNG, WebP or AVIF image' });
 
   const buffer = Buffer.from(match[2], 'base64');
-  if (buffer.length > 6 * 1024 * 1024) {
-    return res.status(413).json({ error: 'Image must be 6 MB or smaller' });
+  const imageCap = Math.min(6 * 1024 * 1024, getStorage().maxFileBytes);
+  if (buffer.length > imageCap) {
+    return res.status(413).json({
+      error: `Rasm ${Math.floor(imageCap / (1024 * 1024))} MB dan katta bo‘lmasligi kerak`,
+    });
   }
 
   // the declared MIME type is the caller's word; the first bytes are proof
@@ -873,9 +907,10 @@ app.post(
 
   const filename = `${crypto.randomUUID()}.${ext}`;
   try {
-    fs.writeFileSync(path.join(UPLOAD_DIR, filename), buffer);
+    await getStorage().putFile(filename, buffer, match[1].toLowerCase());
   } catch (err) {
-    return res.status(500).json({ error: `Could not save the image: ${err.message}` });
+    console.error('[uploads]', err);
+    return res.status(500).json({ error: 'Rasmni saqlab bo‘lmadi' });
   }
   res.status(201).json({ url: `/uploads/${filename}`, bytes: buffer.length });
   },
@@ -918,7 +953,7 @@ app.post(
   auth(),
   requireRole('superadmin', 'admin'),
   express.raw({ type: () => true, limit: '55mb' }),
-  (req, res) => {
+  async (req, res) => {
     const kind = req.query.kind === 'doc' ? 'doc' : 'image';
     const original = String(req.query.name || 'fayl').slice(0, 160);
     const ext = (original.split('.').pop() || '').toLowerCase();
@@ -930,8 +965,14 @@ app.post(
     }
     const buffer = Buffer.isBuffer(req.body) ? req.body : Buffer.alloc(0);
     if (!buffer.length) return res.status(400).json({ error: 'Bo‘sh fayl yuborildi' });
-    if (buffer.length > MAX_ASSET_IMAGE_BYTES) {
-      return res.status(413).json({ error: 'Fayl 50 MB dan katta bo‘lmasligi kerak' });
+
+    // the ceiling is whatever the backend can take: a mounted disk swallows
+    // 50 MB happily, a row in a free Postgres plan should not
+    const cap = Math.min(MAX_ASSET_IMAGE_BYTES, getStorage().maxFileBytes);
+    if (buffer.length > cap) {
+      return res.status(413).json({
+        error: `Fayl ${Math.floor(cap / (1024 * 1024))} MB dan katta bo‘lmasligi kerak`,
+      });
     }
     if (kind === 'image' && !looksLikeImage(buffer)) {
       return res.status(400).json({ error: 'Bu fayl haqiqiy rasm emas' });
@@ -939,9 +980,10 @@ app.post(
 
     const filename = `${crypto.randomUUID()}.${ext}`;
     try {
-      fs.writeFileSync(path.join(UPLOAD_DIR, filename), buffer);
+      await getStorage().putFile(filename, buffer, EXT_MIME[ext] || 'application/octet-stream');
     } catch (err) {
-      return res.status(500).json({ error: `Faylni saqlab bo‘lmadi: ${err.message}` });
+      console.error('[uploads]', err);
+      return res.status(500).json({ error: 'Faylni saqlab bo‘lmadi' });
     }
     res.status(201).json({
       url: `/uploads/${filename}`,
@@ -1131,12 +1173,25 @@ app.use((err, req, res, _next) => {
 
 const start = async () => {
   await initDb();
+  const store = getStorage();
+
+  // the disk backend needs its uploads folder; Postgres does not
+  if (store.kind === 'disk') fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 
   const server = app.listen(PORT, HOST, () => {
     const where = HOST === '0.0.0.0' ? 'localhost' : HOST;
     console.log(`\n  Gold Med Nova API  →  http://${where}:${PORT}/api/health`);
     console.log(`  Rejim              →  ${isProduction ? 'production' : 'development'}`);
-    console.log(`  Ma'lumotlar        →  ${DATA_DIR}`);
+    console.log(
+      `  Ma'lumotlar        →  ${store.kind === 'postgres' ? 'Postgres' : 'disk'} · ${store.describe}`,
+    );
+    if (store.kind === 'disk' && !process.env.DATA_DIR) {
+      console.warn(
+        '\n  [diqqat] DATA_DIR ham, DATABASE_URL ham berilmagan.\n' +
+          '  Bulutda bu degani — server har qayta ishga tushganda hamma\n' +
+          "  kiritilgan ma'lumot yo'qoladi. DEPLOY.md ga qarang.\n",
+      );
+    }
     console.log(`  Boshqaruv paneli   →  http://${where}:${PORT}/adm1n\n`);
 
     // A generated administrator password is shown once, here, and never
@@ -1154,11 +1209,24 @@ const start = async () => {
     generatedPasswords.length = 0;
   });
 
-  // finish in-flight requests instead of dropping them on a redeploy
-  const shutdown = (signal) => () => {
+  /**
+   * Finish in-flight requests, then make sure the last change reached the
+   * backend before the process goes away. Cloud hosts send SIGTERM on every
+   * redeploy, so this runs often — losing the final edit each time would be
+   * a slow, silent data leak.
+   */
+  let closing = false;
+  const shutdown = (signal) => async () => {
+    if (closing) return;
+    closing = true;
     console.log(`\n[server] ${signal} — to‘xtatilmoqda…`);
-    server.close(() => process.exit(0));
-    setTimeout(() => process.exit(0), 10_000).unref();
+    server.close();
+    try {
+      await closeDb();
+    } catch (err) {
+      console.error('[server] saqlashda xato:', err.message);
+    }
+    process.exit(0);
   };
   process.on('SIGTERM', shutdown('SIGTERM'));
   process.on('SIGINT', shutdown('SIGINT'));

@@ -1,8 +1,8 @@
-import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { products } from './data/catalog.js';
+import { createStorage } from './storage.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -18,9 +18,10 @@ export const DATA_DIR = process.env.DATA_DIR
 
 export const UPLOAD_DIR = path.join(DATA_DIR, 'uploads');
 
-const DB_FILE = path.join(DATA_DIR, 'db.json');
-const TMP_FILE = `${DB_FILE}.tmp`;
-const BAK_FILE = `${DB_FILE}.bak`;
+/** the chosen backend — disk or Postgres; set by initDb() */
+let storage = null;
+
+export const getStorage = () => storage;
 
 /* ------------------------------------------------------------------ */
 /* password hashing (scrypt — no native deps)                          */
@@ -228,12 +229,6 @@ async function defaultDb() {
 
 let cache = null;
 
-/** db.json is ours, but a reviver still costs nothing */
-const FORBIDDEN_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
-const safeReviver = (key, value) => (FORBIDDEN_KEYS.has(key) ? undefined : value);
-
-const parse = (raw) => JSON.parse(raw, safeReviver);
-
 function fillMissingCollections(db) {
   db.categories ??= [];
   db.products ??= [];
@@ -252,70 +247,108 @@ function fillMissingCollections(db) {
 }
 
 /**
- * Reads db.json, falling back to the backup a previous write left behind.
- *
- * Reseeding is the last resort: it hands out a brand-new random administrator
- * password rather than silently restoring a known one.
+ * The in-memory copy is the one the application reads, and it is handed back
+ * synchronously — every caller in the codebase expects that. Persisting it is
+ * what happens in the background.
  */
 export function readDb() {
   if (cache) return cache;
-
-  for (const file of [DB_FILE, BAK_FILE]) {
-    try {
-      if (!fs.existsSync(file)) continue;
-      const loaded = parse(fs.readFileSync(file, 'utf8'));
-      if (!loaded || typeof loaded !== 'object') continue;
-      cache = fillMissingCollections(loaded);
-      if (file === BAK_FILE) {
-        console.warn('[db] db.json unreadable — recovered from the backup copy');
-        writeDb(cache);
-      }
-      return cache;
-    } catch (err) {
-      console.warn(`[db] could not read ${path.basename(file)}: ${err.message}`);
-    }
-  }
-
-  throw new Error('[db] no database on disk — call initDb() before readDb()');
+  throw new Error('[db] baza hali yuklanmagan — avval initDb() chaqiring');
 }
 
 /**
- * Boots the database. Kept separate from readDb because seeding the first
- * administrator hashes a password, and hashing is asynchronous.
+ * Boots the database: picks the backend, loads what is already stored, and
+ * seeds a fresh one only when there is genuinely nothing there.
+ *
+ * Kept asynchronous because both loading from Postgres and hashing the first
+ * administrator's password are asynchronous; readDb() stays synchronous.
  */
 export async function initDb() {
   if (cache) return cache;
-  for (const file of [DB_FILE, BAK_FILE]) {
-    if (fs.existsSync(file)) {
-      try {
-        return readDb();
-      } catch {
-        /* fall through to reseed */
-      }
-    }
+
+  storage = await createStorage(DATA_DIR);
+
+  const loaded = await storage.loadState();
+  if (loaded && typeof loaded === 'object') {
+    cache = fillMissingCollections(loaded);
+    return cache;
   }
+
   cache = await defaultDb();
-  writeDb(cache);
+  await persist();
   return cache;
 }
 
+/* ------------------------------------------------------------------ */
+/* persistence                                                         */
+/*                                                                     */
+/* Writes are coalesced: a burst of changes inside one request becomes  */
+/* a single save. Postgres in particular is a network round trip, and   */
+/* doing one per field edit would be both slow and wasteful.            */
+/* ------------------------------------------------------------------ */
+
+const FLUSH_MS = Number(process.env.DB_FLUSH_MS) || 250;
+
+let flushTimer = null;
+let writing = null;
+let pendingAgain = false;
+
+async function persist() {
+  if (!storage || !cache) return;
+  if (writing) {
+    // a save is already in flight — make sure another one follows it
+    pendingAgain = true;
+    return writing;
+  }
+  writing = (async () => {
+    try {
+      await storage.saveState(cache);
+    } catch (err) {
+      console.error('[db] saqlab bo‘lmadi:', err.message);
+    } finally {
+      writing = null;
+    }
+    if (pendingAgain) {
+      pendingAgain = false;
+      await persist();
+    }
+  })();
+  return writing;
+}
+
 /**
- * Atomic write: a full copy lands in a temp file, the previous database
- * becomes the backup, and only then does the temp file take its place. A
- * crash mid-write can no longer leave a truncated db.json behind — which
- * used to mean a silent reseed and the loss of every record.
+ * Updates the in-memory copy now and schedules the save.
+ *
+ * Returning synchronously is deliberate: all 30-odd call sites across the
+ * stores are synchronous, and making them await would be a rewrite with far
+ * more room for mistakes than this costs. The window in which a crash could
+ * lose the very last change is a quarter of a second, and flushDb() closes
+ * even that on a clean shutdown.
  */
 export function writeDb(next = cache) {
   cache = next;
-  try {
-    fs.mkdirSync(DATA_DIR, { recursive: true });
-    fs.writeFileSync(TMP_FILE, JSON.stringify(next, null, 2), { encoding: 'utf8', mode: 0o600 });
-    if (fs.existsSync(DB_FILE)) fs.copyFileSync(DB_FILE, BAK_FILE);
-    fs.renameSync(TMP_FILE, DB_FILE);
-  } catch (err) {
-    console.warn('[db] could not persist db.json:', err.message);
-  }
+  if (flushTimer) return cache;
+  flushTimer = setTimeout(() => {
+    flushTimer = null;
+    persist();
+  }, FLUSH_MS);
+  flushTimer.unref?.();
   return cache;
+}
+
+/** waits for everything outstanding to reach the backend */
+export async function flushDb() {
+  if (flushTimer) {
+    clearTimeout(flushTimer);
+    flushTimer = null;
+  }
+  await persist();
+  if (writing) await writing;
+}
+
+export async function closeDb() {
+  await flushDb();
+  if (storage) await storage.close();
 }
 
 export function publicUser(user) {

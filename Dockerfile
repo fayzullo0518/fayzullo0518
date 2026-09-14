@@ -22,7 +22,10 @@ COPY server ./server
 COPY package.json ./
 COPY --from=build /app/client/dist ./client/dist
 
-# the database and uploads live on a volume, outside the image
+# Where the data lives depends on the host:
+#   * a mounted volume (Fly.io, VPS) -> it lands in /data
+#   * DATABASE_URL set              -> it lands in Postgres and /data is unused
+# Either way the folder exists and belongs to the unprivileged user.
 ENV DATA_DIR=/data
 RUN mkdir -p /data && chown -R node:node /data /app
 

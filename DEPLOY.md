@@ -1,63 +1,83 @@
-# Saytni bepul serverga joylash
+# Saytni serverga joylash
 
-Uchta variant. Birinchisi eng oson, uchinchisi eng ishonchli.
+Eng muhim savol — **kiritgan ma'lumotlaringiz qayerda saqlanadi.**
 
-Qaysi birini tanlamang, kerak bo'ladigan narsa bir xil:
+Bepul hostlarning aksariyati konteynerni o'chirib-yoqib turadi va diskdagi
+hamma narsa yo'qoladi. Shuning uchun sayt ikki xil ishlay oladi:
 
-| Sozlama | Qiymat |
-|---|---|
-| `NODE_ENV` | `production` |
-| `JWT_SECRET` | `npm run secret` chiqargan satr (32+ belgi) |
-| `ADMIN_PASSWORD` | o'zingiz o'ylab topgan parol, 12+ belgi |
-| `FORCE_HTTPS` | `false` — TLS'ni platformaning o'zi hal qiladi |
-| `TRUST_PROXY` | `1` |
-| `HOST` | `0.0.0.0` |
-| `DATA_DIR` | `/data` (disk ulangan bo'lsa) |
+| Variant | Ma'lumot qayerda | Karta | Fayl hajmi |
+|---|---|---|---|
+| **A. Neon Postgres** | tashqi bazada | kerak emas | 10 MB gacha |
+| **B. Fly.io disk** | serverning o'z diskida | kerak | 50 MB gacha |
 
----
-
-## 1. Render.com — eng oson
-
-**Bir bosishda:**
-
-https://render.com/deploy?repo=https://github.com/fayzullo0518/fayzullo0518
-
-Yoki qo'lda:
-
-1. [render.com](https://render.com) da ro'yxatdan o'ting (karta kerak emas).
-2. **New → Blueprint** → GitHub hisobini ulang → shu repozitoriyni tanlang.
-3. Render `render.yaml` ni o'qiydi va hamma sozlamani o'zi qo'yadi.
-   `JWT_SECRET` avtomatik yaratiladi.
-4. Faqat bittasini qo'lda yozasiz: **`ADMIN_PASSWORD`**.
-5. **Apply** → 3-5 daqiqada `https://goldmednova.onrender.com` tayyor.
-
-**Bepul rejaning ikkita cheklovi bor, ikkalasi ham muhim:**
-
-* 15 daqiqa hech kim kirmasa server uxlaydi. Keyingi tashrifchi
-  ~50 soniya kutadi. Sayt yo'qolmaydi, shunchaki sekin uyg'onadi.
-* **Diski yo'q.** Har deploy'da va har uyg'onishda `db.json` nolga
-  qaytadi — ya'ni qo'shgan uskunalaringiz, so'rovlar va yuklangan
-  shartnomalar yo'qoladi.
-
-Ya'ni Render bepul reja — **ko'rsatish uchun** yaxshi, haqiqiy reyestr
-yuritish uchun emas. Reyestr kerak bo'lsa Render'da disk qo'shing
-(oyiga $7 dan) yoki quyidagi Fly.io variantini oling.
+Ikkalasi ham sinovdan o'tgan: serverni o'chirib, diskni butunlay
+o'chirib tashlab, qaytadan yoqqanda ham uskunalar, so'rovlar va
+yuklangan fayllar joyida qoldi.
 
 ---
 
-## 2. Fly.io — bepul, lekin disk bilan
+## A. Kartasiz: Neon + istalgan bepul host
 
-Ma'lumotlar saqlanib qoladi.
+Ma'lumot Neon'da (bepul Postgres) yotadi, host esa faqat saytni
+ko'rsatadi. Host o'chib yonsa ham baza tegilmaydi.
+
+### 1. Neon'da baza oching
+
+1. [neon.tech](https://neon.tech) → GitHub bilan kiring (karta so'ralmaydi).
+2. **Create project** → nom: `goldmednova`, region: Frankfurt.
+3. **Connection string** ni nusxa oling. Shunga o'xshash bo'ladi:
+
+   ```
+   postgresql://neondb_owner:XXXX@ep-xxx.eu-central-1.aws.neon.tech/neondb?sslmode=require
+   ```
+
+Bepul reja: 0.5 GB. Bu reyestr uchun juda yetarli.
+
+### 2. Maxfiy kalit yarating
 
 ```bash
-# 1. flyctl o'rnating
+npm run secret
+```
+
+### 3. Hostga joylashtiring
+
+**Koyeb** ([koyeb.com](https://koyeb.com), kartasiz):
+
+1. **Create Service** → **GitHub** → `fayzullo0518/fayzullo0518`
+2. Builder: **Dockerfile**
+3. Health check path: `/api/health`
+4. Environment variables:
+
+   | Nom | Qiymat |
+   |---|---|
+   | `DATABASE_URL` | Neon bergan satr |
+   | `JWT_SECRET` | `npm run secret` chiqargani |
+   | `ADMIN_PASSWORD` | o'zingiznikini, 12+ belgi |
+   | `NODE_ENV` | `production` |
+   | `FORCE_HTTPS` | `false` |
+   | `TRUST_PROXY` | `1` |
+
+5. **Deploy**.
+
+Xuddi shu o'zgaruvchilar bilan **Railway**, **Render** yoki boshqa
+istalgan Docker'ni qo'llaydigan host ham ishlaydi — ma'lumot Neon'da
+bo'lgani uchun hostning diski bor-yo'qligi endi ahamiyatsiz.
+
+---
+
+## B. Karta bilan: Fly.io + disk
+
+Eng sodda yo'l — kod umuman o'zgarmaydi, fayllar 50 MB gacha.
+
+```bash
+# 1. flyctl
 curl -L https://fly.io/install.sh | sh
 
 # 2. kiring
 fly auth login
 
-# 3. loyiha papkasida
-fly launch --no-deploy          # fly.toml allaqachon bor, uni saqlang
+# 3. loyiha papkasida (fly.toml allaqachon bor — uni saqlang)
+fly launch --no-deploy
 
 # 4. ma'lumotlar uchun disk
 fly volumes create goldmednova_data --size 1 --region fra
@@ -75,37 +95,39 @@ Manzil: `https://goldmednova.fly.dev`
 
 `auto_stop_machines = "stop"` yozilgani uchun hech kim kirmasa mashina
 to'xtaydi va bepul limit ichida qoladi; birinchi so'rov uni ~2 soniyada
-uyg'otadi.
+uyg'otadi. Disk to'xtagan paytda ham joyida turadi.
 
 ---
 
-## 3. O'z serveringiz (VPS)
+## C. O'z serveringiz (VPS)
 
-`deploy/SERVERGA-JOYLASH.md` da nginx va systemd bilan to'liq yo'riqnoma
-bor. Qisqacha:
-
-```bash
-git clone https://github.com/fayzullo0518/fayzullo0518.git goldmednova
-cd goldmednova
-npm run install:all
-npm run build
-cp .env.example .env      # va to'ldiring
-npm start
-```
-
-Oldiga nginx qo'yiladi, sertifikat `certbot` bilan olinadi.
+`deploy/SERVERGA-JOYLASH.md` da nginx va systemd bilan to'liq yo'riqnoma.
+`DATA_DIR` ni doimiy papkaga ko'rsating — boshqa hech narsa kerak emas.
 
 ---
 
-## Joylagandan keyin — majburiy uchta qadam
+## Joylagandan keyin
 
-**1. Ishlayotganini tekshiring**
+### 1. Ishlayotganini tekshiring
 
 ```bash
 curl https://sizning-saytingiz/api/health
 ```
 
-**2. Xavfsizlik testini haqiqiy manzilga qarshi yurgizing**
+### 2. Qaysi saqlash usuli ishlayotganini ko'ring
+
+Server jurnalining boshida yozilgan:
+
+```
+Ma'lumotlar → Postgres · postgresql://***@ep-xxx.neon.tech/neondb
+Ma'lumotlar → disk · /data
+```
+
+Agar **`[diqqat] DATA_DIR ham, DATABASE_URL ham berilmagan`** degan
+ogohlantirish chiqsa — to'xtang. Bu degani ma'lumotlaringiz keyingi
+qayta ishga tushishda yo'qoladi.
+
+### 3. Xavfsizlik testini yurgizing
 
 ```bash
 CHECK_URL=https://sizning-saytingiz \
@@ -113,24 +135,29 @@ CHECK_PASS='sizning-admin-parolingiz' \
 npm run security:check
 ```
 
-Hammasi o'tishi kerak. Bu test brute-force cheklovini ham sinaydi,
-shuning uchun undan keyin 15 daqiqa o'zingiz ham kira olmaysiz — bu
-normal.
+53 ta tekshiruv o'tishi kerak. Bu test brute-force cheklovini ham
+sinaydi, shuning uchun undan keyin 15 daqiqa o'zingiz ham kira
+olmaysiz — bu normal.
 
-**3. Panelga kiring va parolni almashtiring**
+### 4. Panelga kiring va parolni almashtiring
 
 `https://sizning-saytingiz/dev`
 
-`ADMIN_PASSWORD` bermagan bo'lsangiz, parol server jurnalida (Render:
-**Logs** bo'limi; Fly: `fly logs`) bir marta chiqadi.
+`ADMIN_PASSWORD` bermagan bo'lsangiz, parol jurnalda bir marta chiqadi.
+
+### 5. Ma'lumot haqiqatan saqlanayotganini o'zingiz sinang
+
+Bitta uskuna qo'shing, keyin hostda **Restart** bosing. Uskuna joyida
+qolsa — hammasi to'g'ri sozlangan.
 
 ---
 
 ## Nima qilmaslik kerak
 
-* `.env` faylini git'ga qo'shmang. `.gitignore` da bor, shundayligicha qolsin.
-* `JWT_SECRET` ni hech kimga bermang va hech qayerga yozmang. U o'zgarsa
-  hamma sessiya bekor bo'ladi (bu — zarar emas, himoya).
-* Admin parolini xat, Telegram yoki hujjat orqali yubormang.
-* `TRUST_PROXY` ni proxy'siz serverda `1` qilib qo'ymang — bunda har kim
+* `.env` faylini git'ga qo'shmang.
+* `JWT_SECRET` va `DATABASE_URL` ni hech kimga bermang.
+* `TRUST_PROXY` ni proksisiz serverda `1` qilmang — bunda har kim
   o'z IP'sini soxtalashtirib rate limit'dan o'tib ketadi.
+* **Render'ning bepul rejasiga `DATABASE_URL`siz joylamang** — u yerda
+  disk yo'q, hamma narsa har safar o'chib ketadi. Biz shuning uchun
+  undan voz kechdik.

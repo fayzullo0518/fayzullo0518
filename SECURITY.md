@@ -41,7 +41,27 @@ Endi kodda hech qanday parol yo'q:
 qaytarib qo'yardi. Hisobni o'chirib tashlash ham yordam bermasdi. Endi
 bunday tiklash yangi tasodifiy parol bilan bo'ladi.
 
-### 3. Baza yozuvining atomik emasligi — **yuqori**
+### 3. Ma'lumotlarning yo'qolib ketishi — **yuqori**
+
+Baza `server/data/db.json` faylida yotardi. Bepul bulut hostlarida disk
+vaqtinchalik: konteyner har qayta ishga tushganda hamma narsa noldan
+boshlanadi. Ya'ni kiritilgan uskunalar, so'rovlar va yuklangan
+shartnomalar muntazam yo'qolib turardi.
+
+Endi ikkita saqlash usuli bor va ikkalasi ham doimiy:
+
+* `DATABASE_URL` berilsa — hammasi Postgres'da (holat hujjati ham,
+  fayllar ham). Hostning diski bor-yo'qligi ahamiyatsiz.
+* aks holda — `DATA_DIR` papkasida, ulangan diskda.
+
+Ikkalasi ham sinovdan o'tgan: server o'chirilib, disk butunlay o'chirib
+tashlanib, qaytadan yoqilganda uskunalar, so'rovlar va yuklangan fayl
+baytma-bayt joyida qoldi. `SIGTERM` (har deploy'da yuboriladi) kelganda
+server oxirgi o'zgarishni bazaga yozib ulguradi.
+
+Hech biri berilmasa server ishga tushishda qizil ogohlantirish chiqaradi.
+
+### 4. Baza yozuvining atomik emasligi — **yuqori**
 
 `db.json` to'g'ridan-to'g'ri ustiga yozilardi. Yozish o'rtasida server
 o'chsa, fayl yarim qolardi; keyingi ishga tushishda `readDb()` uni o'qiy
@@ -52,7 +72,7 @@ Endi: vaqtinchalik faylga yoziladi → eskisi `.bak` ga ko'chiriladi →
 keyin o'rniga qo'yiladi. `db.json` buzilsa `.bak` dan tiklanadi. Fayl
 huquqi `0600`.
 
-### 4. Yetishmayotgan rol tekshiruvlari — **yuqori**
+### 5. Yetishmayotgan rol tekshiruvlari — **yuqori**
 
 Bu nuqtalarda faqat "kirgan bo'lsa bo'ldi" tekshiruvi bor edi, ya'ni
 `viewer` (faqat ko'rish) hisobi ham ularga yeta olardi:
@@ -67,7 +87,7 @@ Bu nuqtalarda faqat "kirgan bo'lsa bo'ldi" tekshiruvi bor edi, ya'ni
 Birinchisi eng muhimi: jamoa ro'yxatida hamkasblarning e-mail va telefon
 raqamlari bor.
 
-### 5. Token (JWT) mustahkamlangan — **o'rta**
+### 6. Token (JWT) mustahkamlangan — **o'rta**
 
 * `algorithms: ['HS256']` qattiq belgilangan — boshqa (zaifroq) algoritm
   bilan yasalgan token qabul qilinmaydi;
@@ -77,7 +97,7 @@ raqamlari bor.
   almashtirilgandan keyin ham 12 soat amal qilardi;
 * tokendagi rol emas, bazadagi rol ishlatiladi.
 
-### 6. Parol hash'lash — **o'rta**
+### 7. Parol hash'lash — **o'rta**
 
 `scryptSync` → asinxron `crypto.scrypt`, `N` 16384 dan 32768 ga
 ko'tarildi, parametrlar hash bilan birga saqlanadi (kelajakda oshirish
@@ -86,13 +106,13 @@ to'xtatib turardi — bu o'z-o'zidan DoS vektori edi.
 
 Eski formatdagi hash'lar ham o'qiladi, ya'ni mavjud baza ishlayveradi.
 
-### 7. Hisob nomini aniqlab olish — **past**
+### 8. Hisob nomini aniqlab olish — **past**
 
 Login topilmasa parol umuman tekshirilmasdi, javob tezroq qaytardi —
 shu farq orqali qaysi loginlar mavjudligini bilib olish mumkin edi. Endi
 mavjud bo'lmagan login uchun ham xuddi shuncha hisob-kitob bajariladi.
 
-### 8. Ochiq yozuv nuqtalari — **yuqori**
+### 9. Ochiq yozuv nuqtalari — **yuqori**
 
 `POST /api/inquiries` (buyurtma formasi) faqat umumiy API cheklovi ostida
 edi: bitta IP 15 daqiqada 1200 ta yozuv qo'sha olardi, har biri butun
@@ -101,20 +121,20 @@ bazani diskka qayta yozardi. Endi soatiga 8 ta.
 Hamkor API'sining "requests" hisoblagichi ham har so'rovda butun bazani
 diskka yozardi — endi 30 soniyada bir marta yoziladi.
 
-### 9. Fayl yuklash — **o'rta**
+### 10. Fayl yuklash — **o'rta**
 
 Ilgari faqat fayl nomining kengaytmasi tekshirilardi. Endi rasm
 fayllarining birinchi baytlari ham tekshiriladi (JPEG, PNG, GIF, BMP,
 WebP, AVIF, HEIC imzolari) — `.jpg` deb nomlangan HTML yoki skript
 saqlanmaydi. SVG umuman qabul qilinmaydi (u XSS uchun klassik vektor).
 
-### 10. Xato javoblari — **o'rta**
+### 11. Xato javoblari — **o'rta**
 
 Har qanday xato 500 qaytarardi — hajmi katta so'rov ham, CORS rad etishi
 ham, noto'g'ri JSON ham. Endi to'g'ri kod qaytadi (413 / 400 / 403), va
 ichki xabar hech qachon tashqariga chiqmaydi.
 
-### 11. Parol siyosati
+### 12. Parol siyosati
 
 Kamida 12 belgi (ilgari 10), harf va raqam majburiy, ichida login nomi
 bo'lmasligi kerak, kamida 5 xil belgi, ommabop parollar ro'yxati kengaydi.

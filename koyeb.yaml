@@ -1,0 +1,18 @@
+# Koyeb — kartasiz bepul host.
+#
+# Koyeb'ning o'z diski yo'q, shuning uchun hamma ma'lumot DATABASE_URL
+# ko'rsatgan Postgres'da yotadi (Neon — bepul, kartasiz). Konteyner
+# o'chib yonganda ham hech narsa yo'qolmaydi.
+#
+# Koyeb panelida: Create Service -> GitHub -> shu repozitoriy -> Dockerfile.
+# Quyidagi o'zgaruvchilarni qo'lda kiritasiz (Environment variables):
+#
+#   DATABASE_URL   Neon bergan ulanish satri (?sslmode=require bilan)
+#   JWT_SECRET     npm run secret chiqargan satr
+#   ADMIN_PASSWORD o'zingiz o'ylab topgan parol, 12+ belgi
+#   NODE_ENV       production
+#   FORCE_HTTPS    false
+#   TRUST_PROXY    1
+#
+# Health check yo'li:  /api/health
+# Port:                8000  (Koyeb PORT o'zgaruvchisini o'zi beradi)
