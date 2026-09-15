@@ -14,9 +14,11 @@ export const esc = (matn) =>
     .replace(/>/g, '&gt;');
 
 export class Telegram {
-  constructor(token) {
+  constructor(token, asos = 'https://api.telegram.org') {
+    const ildiz = String(asos).replace(/\/+$/, '');
     this.token = token;
-    this.asos = `https://api.telegram.org/bot${token}`;
+    this.asos = `${ildiz}/bot${token}`;
+    this.faylAsos = `${ildiz}/file/bot${token}`;
   }
 
   async chaqir(metod, tana, { kutish = 30000 } = {}) {
@@ -84,7 +86,7 @@ export class Telegram {
   /** file_id -> Buffer */
   async faylniYuklash(fileId) {
     const fayl = await this.chaqir('getFile', { file_id: fileId });
-    const javob = await fetch(`https://api.telegram.org/file/bot${this.token}/${fayl.file_path}`, {
+    const javob = await fetch(`${this.faylAsos}/${fayl.file_path}`, {
       signal: AbortSignal.timeout(120000),
     });
     if (!javob.ok) throw new Error(`Fayl yuklanmadi: HTTP ${javob.status}`);

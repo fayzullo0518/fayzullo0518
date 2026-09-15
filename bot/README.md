@@ -222,6 +222,9 @@ qayta ishga tushadi.
 | `TIMEZONE` | `Asia/Tashkent` | Sanalar shu mintaqada hisoblanadi |
 | `ESLATMA_SOATI` | `9` | Kunlik eslatma soati (0-23) |
 | `TASDIQ_DAQIQA` | `10` | Ovoz yozuvi qancha kutadi |
+| `TEKSHIRUV_SONIYA` | `60` | Eslatma/tasdiq jadvali qancha tez tekshiriladi |
+| `TELEGRAM_ASOS` | rasmiy | Sinov uchun boshqa manzil |
+| `BAZA_YOLI` | `data/daftar.json` | Baza fayli qayerda tursin |
 | `VALYUTA` | `UZS` | Valyuta aytilmaganda shu olinadi |
 
 ### Claude'ga o'tish
@@ -251,15 +254,35 @@ Kuniga ~25 xabar bo'lganda, taxminiy oylik:
 
 ---
 
-## Sinov
+## Sinov va demo
 
 ```bash
-npm test       # 51 ta sinov — tarmoqqa ulanmasdan ishlaydi
-npm run tekshir # jonli xizmatlarni tekshiradi
-npm run check  # hamma fayl sintaksisi
+npm run demo    # butun botni soxta Telegram bilan ishlatib ko'rsatadi
+npm test        # 51 ta sinov — tarmoqqa ulanmasdan
+npm run tekshir # jonli xizmatlarni tekshiradi (token, kalit, ovoz)
+npm run check   # hamma fayl sintaksisi
 ```
 
-Sinovlar sana hisobi, baza, vositalar, Excel yozuvchi, eslatma mantiqi,
+### `npm run demo`
+
+Haqiqiy botni (`src/index.js`) ishga tushiradi, lekin Telegram, DeepSeek va
+ovoz xizmatlari o'rniga mahalliy soxta server turadi. Internet ham, pul ham
+ketmaydi. Bir daqiqada butun oqimni ko'rasiz:
+
+```
+── 4. Ovozli xabar — eshitgani qaytarildi va tasdiq so'raldi ─
+  🤖 🎤 Eshitganim:
+     Akmalga besh million qarz berdim o'ttiz sentabrda qaytaradi
+  🤖 Saqladim: Akmal — 5 000 000 so'm, 30-sentabrgacha.
+  🤖 📝 Shu yozuv saqlandi:
+        • Y0003 ⏳ • Akmal • 5 000 000 UZS • 30.09.2026 gacha
+     [ ✅ To'g'ri ]  [ 🗑 Akmal o'chirilsin ]
+```
+
+Demoda ko'rsatiladi: eslatma va «qaytardi» tugmasi, yozma xabar, ovozli
+xabar + tasdiq, jim qolinganda o'zi tasdiqlanishi, `/royxat`, `/excel`.
+
+Sinovlar esa sana hisobi, baza, vositalar, Excel yozuvchi, eslatma mantiqi,
 tasdiqlash oqimi, DeepSeek so'rov/javob shakli va agent siklini qamrab oladi.
 
 ---
@@ -301,6 +324,7 @@ bot/
 │   └── config.js     — .env o'qish va tekshirish
 ├── test/
 │   ├── smoke.js      — 51 ta sinov
+│   ├── demo.js       — soxta Telegram bilan to'liq ishga tushirish
 │   └── tekshir.js    — jonli diagnostika
 └── data/daftar.json  — sizning ma'lumotlaringiz
 ```

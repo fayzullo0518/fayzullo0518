@@ -59,7 +59,7 @@ async function asosiy() {
   }
 
   const daftar = new Daftar(cfg.bazaYoli);
-  const telegram = new Telegram(cfg.token);
+  const telegram = new Telegram(cfg.token, cfg.telegramAsos);
   const agent = new Agent(cfg, daftar);
 
   const men = await telegram.chaqir('getMe').catch((xato) => {

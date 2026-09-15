@@ -10,7 +10,8 @@
     "dev": "node --watch src/index.js",
     "test": "node test/smoke.js",
     "check": "node --check src/index.js && node --check src/miya.js && node --check src/agent.js && node --check src/vositalar.js && node --check src/store.js && node --check src/telegram.js && node --check src/hisobot.js && node --check src/eslatma.js && node --check src/vaqt.js && node --check src/asr.js && node --check src/config.js && node --check src/xlsx.js",
-    "tekshir": "node test/tekshir.js"
+    "tekshir": "node test/tekshir.js",
+    "demo": "node test/demo.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.70.0",

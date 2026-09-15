@@ -24,22 +24,23 @@ export async function ovozdanMatn(buffer, nom, cfg) {
   }
 
   const matn = cfg.asr === 'openai'
-    ? await openaiOrqali(buffer, nom, cfg.openaiKalit)
-    : await deepgramOrqali(buffer, cfg.deepgramKalit);
+    ? await openaiOrqali(buffer, nom, cfg.openaiKalit, cfg.asrAsos)
+    : await deepgramOrqali(buffer, cfg.deepgramKalit, cfg.asrAsos);
 
   const tozalangan = String(matn || '').trim();
   if (!tozalangan) throw new OvozXatosi('Ovozdan matn chiqmadi — qaytadan, sekinroq aytib ko‘ring.');
   return tozalangan;
 }
 
-async function openaiOrqali(buffer, nom, kalit) {
+async function openaiOrqali(buffer, nom, kalit, asos) {
   const forma = new FormData();
   forma.append('file', new Blob([buffer]), nom || 'audio.oga');
   forma.append('model', 'whisper-1');
   forma.append('language', 'uz');
   forma.append('response_format', 'json');
 
-  const javob = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+  const manzil = `${(asos || 'https://api.openai.com').replace(/\/+$/, '')}/v1/audio/transcriptions`;
+  const javob = await fetch(manzil, {
     method: 'POST',
     headers: { authorization: `Bearer ${kalit}` },
     body: forma,
@@ -54,8 +55,9 @@ async function openaiOrqali(buffer, nom, kalit) {
   return natija.text;
 }
 
-async function deepgramOrqali(buffer, kalit) {
-  const manzil = 'https://api.deepgram.com/v1/listen?model=nova-2&language=uz&smart_format=true&punctuate=true';
+async function deepgramOrqali(buffer, kalit, asos) {
+  const manzil = `${(asos || 'https://api.deepgram.com').replace(/\/+$/, '')}`
+    + '/v1/listen?model=nova-2&language=uz&smart_format=true&punctuate=true';
   const javob = await fetch(manzil, {
     method: 'POST',
     headers: { authorization: `Token ${kalit}`, 'content-type': 'audio/ogg' },

@@ -54,6 +54,11 @@ export function sozlamalar() {
     xatolar.push('ESLATMA_SOATI 0 va 23 orasidagi butun son bo‘lishi kerak');
   }
 
+  const tekshiruvSoniya = son('TEKSHIRUV_SONIYA', 60);
+  if (!(tekshiruvSoniya >= 1) || tekshiruvSoniya > 3600) {
+    xatolar.push('TEKSHIRUV_SONIYA 1 va 3600 orasida bo\'lishi kerak');
+  }
+
   const tasdiqDaqiqa = son('TASDIQ_DAQIQA', 10);
   if (!(tasdiqDaqiqa > 0) || tasdiqDaqiqa > 1440) {
     xatolar.push('TASDIQ_DAQIQA 1 va 1440 orasida bo‘lishi kerak');
@@ -79,6 +84,8 @@ export function sozlamalar() {
 
   return {
     token,
+    // sinov/demo uchun boshqa manzilga yo'naltirish mumkin
+    telegramAsos: matn('TELEGRAM_ASOS', 'https://api.telegram.org'),
     egaId: son('OWNER_ID', 0),
 
     xizmat,
@@ -94,12 +101,14 @@ export function sozlamalar() {
     vaqtMintaqasi,
     eslatmaSoati,
     tasdiqDaqiqa,
+    tekshiruvSoniya,
     valyuta: matn('VALYUTA', 'UZS').toUpperCase() || 'UZS',
 
     asr: openai ? 'openai' : deepgram ? 'deepgram' : 'yoq',
     openaiKalit: openai,
     deepgramKalit: deepgram,
+    asrAsos: matn('ASR_ASOS'),
 
-    bazaYoli: path.join(ROOT, 'data', 'daftar.json'),
+    bazaYoli: matn('BAZA_YOLI') || path.join(ROOT, 'data', 'daftar.json'),
   };
 }

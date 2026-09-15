@@ -34,7 +34,7 @@ export function eslatmaMatni(royxat, bugungi) {
       qatorlar.push(`   • ${esc(qisqaSatr(y))} — ${kunFarqi(y.qaytarish_sanasi, bugungi)} kun kechikdi`);
     }
   }
-  qatorlar.push('', 'Qaytargan bo‘lsa tugmasini bosing yoki "Sardor qaytardi" deb yozing.');
+  qatorlar.push('', 'Qaytargan bo‘lsa tugmasini bosing yoki ismini yozib "qaytardi" deng.');
   return qatorlar.join('\n');
 }
 
@@ -103,7 +103,7 @@ export function eslatmaniBoshlash({ daftar, telegram, cfg, chatId }) {
     }
   };
 
-  const taymer = setInterval(tekshir, DAQIQA);
+  const taymer = setInterval(tekshir, (cfg.tekshiruvSoniya || 60) * 1000);
   taymer.unref?.();
   tekshir();
   return () => clearInterval(taymer);
