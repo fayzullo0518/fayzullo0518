@@ -121,7 +121,17 @@ export function sozlamalar(sozlash = {}) {
   const effort = matn('CLAUDE_EFFORT', 'medium').toLowerCase();
 
   const openai = matn('OPENAI_API_KEY');
+  const groq = matn('GROQ_API_KEY');
   const deepgram = matn('DEEPGRAM_API_KEY');
+
+  // Groq OpenAI bilan bir xil API beradi, shuning uchun bir xil kod yo'li
+  const asrXizmati = openai ? 'openai' : groq ? 'groq' : deepgram ? 'deepgram' : 'yoq';
+  const ASR_SUKUT = {
+    openai: { asos: 'https://api.openai.com', model: 'whisper-1', kalit: openai },
+    groq: { asos: 'https://api.groq.com/openai', model: 'whisper-large-v3', kalit: groq },
+    deepgram: { asos: 'https://api.deepgram.com', model: 'nova-2', kalit: deepgram },
+    yoq: { asos: '', model: '', kalit: '' },
+  }[asrXizmati];
 
   return {
     token,
@@ -145,10 +155,10 @@ export function sozlamalar(sozlash = {}) {
     tekshiruvSoniya,
     valyuta: matn('VALYUTA', 'UZS').toUpperCase() || 'UZS',
 
-    asr: openai ? 'openai' : deepgram ? 'deepgram' : 'yoq',
-    openaiKalit: openai,
-    deepgramKalit: deepgram,
-    asrAsos: matn('ASR_ASOS'),
+    asr: asrXizmati,
+    asrKalit: ASR_SUKUT.kalit,
+    asrModel: matn('ASR_MODEL') || ASR_SUKUT.model,
+    asrAsos: (matn('ASR_ASOS') || ASR_SUKUT.asos).replace(/\/+$/, ''),
 
     bazaYoli: matn('BAZA_YOLI') || path.join(ROOT, 'data', 'daftar.json'),
   };

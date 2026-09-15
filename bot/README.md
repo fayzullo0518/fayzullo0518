@@ -120,16 +120,27 @@ npm run sozla     # endi Telegram tokenini ham kiritasiz
 
 ### 2. Ovozli xabar uchun kalit (ixtiyoriy)
 
-DeepSeek'da ovozni matnga o'giradigan xizmat **yo'q**, shuning uchun bunga
-alohida kalit kerak. Ikkitasidan **bittasi** yetarli:
+Na DeepSeek, na Claude audio faylni o'qiy oladi — ovoz avval matnga
+o'girilishi kerak. Shunga alohida kalit kerak, uchtasidan **bittasi**:
 
-* **OpenAI Whisper** — [platform.openai.com](https://platform.openai.com/api-keys) →
-  `OPENAI_API_KEY`. O'zbek tilini yaxshi tushunadi, daqiqasi ~0.006 $.
-* **Deepgram** — [console.deepgram.com](https://console.deepgram.com) →
-  `DEEPGRAM_API_KEY`. Tezroq, bepul boshlang'ich krediti bor.
+| Xizmat | Narxi | Olish |
+|---|---|---|
+| **Groq** | bepul limiti bor, `whisper-large-v3` | [console.groq.com](https://console.groq.com) |
+| OpenAI Whisper | ~0.006 $/daqiqa | [platform.openai.com](https://platform.openai.com/api-keys) |
+| Deepgram | bepul boshlang'ich krediti | [console.deepgram.com](https://console.deepgram.com) |
+
+**Groq'dan boshlash ma'qul** — bepul limiti bor va karta talab qilmaydi.
+Kalit `gsk_` bilan boshlanadi.
+
+```bash
+npm run sozla     # "Ovozli xabar uchun kalit" savoliga qo'ying
+```
+
+Usta kalitni prefiksidan tanib, to'g'ri joyga yozadi: `gsk_` → Groq,
+`sk-` → OpenAI.
 
 Kalit qo'shmasangiz bot ishlayveradi — faqat ovoz kelganda «yozib yuboring»
-deb javob beradi.
+deb javob beradi. **Yozma xabarlar to'liq ishlaydi.**
 
 ### 3. Tekshirish va ishga tushirish
 
@@ -235,7 +246,9 @@ Har kuni soat 3:00 da nusxa oladi, 30 kunlik tarix saqlaydi.
 | `TELEGRAM_BOT_TOKEN` | — | Majburiy |
 | `DEEPSEEK_API_KEY` | — | Majburiy (yoki `ANTHROPIC_API_KEY`) |
 | `OWNER_ID` | — | Faqat shu odam foydalana oladi |
-| `OPENAI_API_KEY` | — | Ovoz uchun (yoki `DEEPGRAM_API_KEY`) |
+| `GROQ_API_KEY` | — | Ovoz uchun, bepul limiti bor |
+| `OPENAI_API_KEY` | — | Ovoz uchun, pullik |
+| `ASR_MODEL` | xizmatga qarab | Ovoz modeli (odatda tegish shart emas) |
 | `LLM_XIZMATI` | avtomatik | `deepseek` yoki `claude` |
 | `LLM_MODEL` | `deepseek-chat` | Claude uchun: `claude-opus-5` |
 | `TIMEZONE` | `Asia/Tashkent` | Sanalar shu mintaqada hisoblanadi |
@@ -353,7 +366,8 @@ Avval **`npm run tekshir`** ishlating — ko'pincha sababni o'zi aytadi.
 | `DEEPSEEK_API_KEY noto'g'ri` | Kalit bekor qilingan yoki xato ko'chirilgan |
 | `DeepSeek balansi tugagan` | platform.deepseek.com da hisobni to'ldiring |
 | `Host not in allowlist` | Serveringiz tarmog'i o'sha manzilni bloklayapti |
-| Ovoz «o'girib bo'lmadi» | `OPENAI_API_KEY` yo'q yoki balansi tugagan |
+| «Balansi tugagan» | Ovoz xizmatining hisobi bo'sh. Bepul muqobil: `console.groq.com` dan `gsk_` kalit olib, `npm run sozla` |
+| Ovoz «o'girib bo'lmadi» | Ovoz kaliti yo'q yoki noto'g'ri. `npm run tekshir` aniq aytadi |
 | Eslatma kelmayapti | `OWNER_ID` bo'sh bo'lsa eslatma ishlamaydi |
 | Ism noto'g'ri yozilgan | Tasdiq xabariga «ismi Sardorbek» deb javob yozing |
 

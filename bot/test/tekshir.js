@@ -10,6 +10,7 @@ import { Telegram } from '../src/telegram.js';
 import { miyaYaratish } from '../src/miya.js';
 import { Daftar } from '../src/store.js';
 import { hozir } from '../src/vaqt.js';
+import { ovozdanMatn, OvozXatosi } from '../src/asr.js';
 
 const OK = '✅';
 const XATO = '❌';
@@ -143,26 +144,49 @@ try {
 
 /* 6. ovoz ---------------------------------------------------------- */
 if (cfg.asr === 'yoq') {
-  console.log(`${OGOH} Ovozli xabar o‘chirilgan — OPENAI_API_KEY yoki DEEPGRAM_API_KEY yo‘q.`);
-  console.log('     Yozma xabarlar to‘liq ishlaydi.');
+  console.log(`${OGOH} Ovozli xabar o'chirilgan - ovoz kaliti yo'q.`);
+  console.log('     Bepul variant: console.groq.com -> .env ga GROQ_API_KEY');
+  console.log("     Yozma xabarlar baribir to'liq ishlaydi.");
 } else {
-  const manzil = cfg.asr === 'openai'
-    ? 'https://api.openai.com/v1/models'
-    : 'https://api.deepgram.com/v1/projects';
-  const sarlavha = cfg.asr === 'openai'
-    ? { authorization: `Bearer ${cfg.openaiKalit}` }
-    : { authorization: `Token ${cfg.deepgramKalit}` };
+  // Kalitni tekshirish yetarli emas: kalit to'g'ri bo'lib, balans tugagan
+  // bo'lishi mumkin. Shuning uchun chinakam qisqa ovoz yuborib ko'ramiz.
   try {
-    const javob = await fetch(manzil, { headers: sarlavha, signal: AbortSignal.timeout(20000) });
-    if (javob.ok) console.log(`${OK} Ovoz xizmati (${cfg.asr}) kalitni qabul qildi`);
-    else {
-      console.error(`${XATO} Ovoz xizmati (${cfg.asr}): HTTP ${javob.status}`);
+    await ovozdanMatn(jimlikWav(0.6), 'sinov.wav', cfg);
+    console.log(`${OK} Ovoz xizmati (${cfg.asr}/${cfg.asrModel}) ishladi`);
+  } catch (xato) {
+    // jimlikdan matn chiqmasligi normal - demak xizmat javob berdi
+    if (xato instanceof OvozXatosi && /matn chiqmadi/.test(xato.message)) {
+      console.log(`${OK} Ovoz xizmati (${cfg.asr}/${cfg.asrModel}) ishladi`);
+    } else {
+      console.error(`${XATO} Ovoz xizmati (${cfg.asr}):`);
+      for (const qator of String(xato.message).split('\n')) {
+        console.error(`     ${qator}`);
+      }
       muammo += 1;
     }
-  } catch (xato) {
-    console.error(`${XATO} Ovoz xizmati (${cfg.asr}): ${xato.message}`);
-    muammo += 1;
   }
+}
+
+/** Sinov uchun jim WAV: 16-bit mono 16 kHz */
+function jimlikWav(soniya) {
+  const chastota = 16000;
+  const namunalar = Math.round(chastota * soniya);
+  const buf = Buffer.alloc(44 + namunalar * 2);
+
+  buf.write('RIFF', 0);
+  buf.writeUInt32LE(36 + namunalar * 2, 4);
+  buf.write('WAVE', 8);
+  buf.write('fmt ', 12);
+  buf.writeUInt32LE(16, 16);        // fmt bo'lagi uzunligi
+  buf.writeUInt16LE(1, 20);         // PCM
+  buf.writeUInt16LE(1, 22);         // mono
+  buf.writeUInt32LE(chastota, 24);
+  buf.writeUInt32LE(chastota * 2, 28);
+  buf.writeUInt16LE(2, 32);         // blok hajmi
+  buf.writeUInt16LE(16, 34);        // bit
+  buf.write('data', 36);
+  buf.writeUInt32LE(namunalar * 2, 40);
+  return buf;                       // qolgani nol = jimlik
 }
 
 console.log(

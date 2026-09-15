@@ -176,7 +176,7 @@ nano .env
 TELEGRAM_BOT_TOKEN=1234567890:AAExxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 DEEPSEEK_API_KEY=sk-...
 OWNER_ID=
-OPENAI_API_KEY=sk-...        # ovozli xabar uchun
+GROQ_API_KEY=gsk_...         # ovozli xabar uchun (bepul limiti bor)
 TIMEZONE=Asia/Tashkent
 ESLATMA_SOATI=9
 ```

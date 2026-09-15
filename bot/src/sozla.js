@@ -59,11 +59,15 @@ const MAYDONLAR = [
     tekshir: (q) => (/^\d+$/.test(q) ? null : 'Faqat raqam bo‘lishi kerak.'),
   },
   {
-    kalit: 'OPENAI_API_KEY',
-    savol: 'OpenAI kaliti (ovozli xabar uchun)',
-    izoh: 'Ovoz kerak bo‘lmasa bo‘sh qoldiring. Yozma xabarlar baribir ishlaydi.',
+    kalit: 'OVOZ_KALITI',
+    savol: 'Ovozli xabar uchun kalit',
+    izoh: 'Groq (bepul limiti bor): console.groq.com -> gsk_...\n'
+      + '   Yoki OpenAI (pullik): platform.openai.com -> sk-...\n'
+      + "   Ovoz kerak bo'lmasa bo'sh qoldiring, yozma xabarlar baribir ishlaydi.",
     shart: false,
-    tekshir: (q) => (q.startsWith('sk-') ? null : 'Kalit "sk-" bilan boshlanishi kerak.'),
+    tekshir: (q) => (/^(sk-|gsk_)/.test(q)
+      ? null
+      : 'Groq kaliti "gsk_", OpenAI kaliti "sk-" bilan boshlanadi.'),
   },
 ];
 
@@ -81,6 +85,8 @@ async function asosiy() {
   console.log(kul(`   Fayl: ${ENV_YOLI}`));
 
   const bor = borniOqish();
+  // ovoz kaliti ikki nom ostida bo'lishi mumkin - bittasiga jamlaymiz
+  bor.OVOZ_KALITI = bor.GROQ_API_KEY || bor.OPENAI_API_KEY || '';
   if (Object.keys(bor).length) {
     console.log(kul('   Mavjud .env topildi — o‘zgartirmaslik uchun Enter bosing.'));
   }
@@ -152,6 +158,11 @@ async function asosiy() {
 }
 
 function yozish(qiymatlar) {
+  // gsk_ -> Groq, sk- -> OpenAI; kod qaysi biri borligiga qarab o'zi tanlaydi
+  const ovoz = qiymatlar.OVOZ_KALITI || '';
+  qiymatlar.GROQ_API_KEY = ovoz.startsWith('gsk_') ? ovoz : '';
+  qiymatlar.OPENAI_API_KEY = ovoz.startsWith('sk-') ? ovoz : '';
+
   const qator = (k) => `${k}=${qiymatlar[k] ?? ''}`;
   const matn = [
     '# Daftar bot sozlamalari - "npm run sozla" yaratdi',
@@ -167,8 +178,13 @@ function yozish(qiymatlar) {
     qator('TELEGRAM_BOT_TOKEN'),
     qator('OWNER_ID'),
     '',
-    '# --- ovozli xabar ---',
+    '# --- ovozli xabar (bittasi yetarli) ---',
+    '# Groq, bepul limiti bilan:  console.groq.com',
+    qator('GROQ_API_KEY'),
+    '# OpenAI Whisper, pullik:    platform.openai.com',
     qator('OPENAI_API_KEY'),
+    '# Deepgram:                  console.deepgram.com',
+    qator('DEEPGRAM_API_KEY'),
     '',
     '# --- qolgan sozlamalar ---',
     qator('TIMEZONE'),
