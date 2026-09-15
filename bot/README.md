@@ -168,41 +168,36 @@ cp bot/data/daftar.json ~/daftar-zaxira-$(date +%F).json
 
 ## Doimiy ishlab turishi uchun (24/7)
 
-Noutbukda `npm start` qilib qo'ysangiz, noutbuk o'chsa bot ham to'xtaydi.
-Doimiy ishlashi uchun arzon VPS (oyiga 3-5 $) oling va `systemd` ga bering:
+Noutbukda `npm start` qilsangiz, noutbuk o'chishi bilan bot ham to'xtaydi.
+Doimiy ishlashi uchun arzon VPS (oyiga $4-6) kerak.
+
+**To'liq qo'llanma: [VPS.md](VPS.md)** — server sotib olishdan to bot o'zi
+qayta ishga tushadigan holatgacha, har bir buyruq izohi bilan. Linux
+bilmasangiz ham bo'ladi.
+
+Qisqacha: serverda kodni klonlab, `.env` ni to'ldirgach:
 
 ```bash
-sudo nano /etc/systemd/system/daftar-bot.service
+sudo bash deploy/ornatish.sh
 ```
 
-```ini
-[Unit]
-Description=Daftar bot
-After=network-online.target
-
-[Service]
-Type=simple
-User=ubuntu
-WorkingDirectory=/home/ubuntu/bot
-ExecStart=/usr/bin/node src/index.js
-Restart=always
-RestartSec=10
-StandardOutput=journal
-StandardError=journal
-
-[Install]
-WantedBy=multi-user.target
-```
+Skript Node versiyasini va `.env` ni tekshiradi, `systemd` xizmatini
+yaratadi va ishga tushiradi. Shundan keyin bot server qayta yuklansa ham
+o'zi yonadi, qulasa ham 10 soniyada tiklanadi.
 
 ```bash
-sudo systemctl daemon-reload
-sudo systemctl enable --now daftar-bot
-sudo systemctl status daftar-bot     # holatini ko'rish
-journalctl -u daftar-bot -f          # loglarni kuzatish
+sudo systemctl status daftar-bot     # holati
+sudo systemctl restart daftar-bot    # qayta ishga tushirish
+journalctl -u daftar-bot -f          # loglar
 ```
 
-`Restart=always` — bot qandaydir sababga ko'ra to'xtasa, 10 soniyada o'zi
-qayta ishga tushadi.
+**Zaxira nusxa** — `deploy/zaxira.sh` ni cron'ga qo'ying:
+
+```cron
+0 3 * * * /home/daftar/daftar-bot/bot/deploy/zaxira.sh
+```
+
+Har kuni soat 3:00 da nusxa oladi, 30 kunlik tarix saqlaydi.
 
 > **Muhim:** botni bir vaqtda ikki joyda ishga tushirmang. Telegram bunga
 > ruxsat bermaydi va log'da `409` xatosi chiqadi.
@@ -354,11 +349,15 @@ bot/
 │   ├── xlsx.js       — kutubxonasiz .xlsx yozuvchi
 │   ├── vaqt.js       — sana hisobi (Asia/Tashkent)
 │   └── config.js     — .env o'qish va tekshirish
+├── deploy/
+│   ├── ornatish.sh   — systemd xizmatini yaratadi
+│   └── zaxira.sh     — kunlik zaxira nusxa
 ├── test/
 │   ├── smoke.js      — 51 ta sinov
 │   ├── demo.js       — soxta Telegram bilan to'liq ishga tushirish
 │   ├── llm-sinov.js  — model o'zbek tilini qanday tushunishi
 │   └── tekshir.js    — jonli diagnostika
+├── VPS.md           — serverga o'rnatish qo'llanmasi
 └── data/daftar.json  — sizning ma'lumotlaringiz
 ```
 
