@@ -292,6 +292,7 @@ Kuniga ~25 xabar bo'lganda, taxminiy oylik:
 npm run sozla     # .env ni savol-javob bilan yaratish
 npm run chat      # terminalda agent bilan gaplashish
 npm run webhook-ochir # 409 xatosi: webhook ni olib tashlash
+npm run holat     # qaysi kod, qayerda, nechta nusxa ishlayapti
 npm run tekshir   # token, kalit, ovoz xizmati — hammasi ishlayaptimi?
 npm run llm-sinov # model o'zbek tilini qanchalik tushunadi?
 npm run demo      # butun botni soxta Telegram bilan ishlatib ko'rsatadi
