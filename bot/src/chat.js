@@ -19,6 +19,7 @@ import { Agent, agentXatosi } from './agent.js';
 import { excelTuzish, oylikHisobotMatni, ochiqlarMatni, qisqaSatr } from './hisobot.js';
 import { muddatiKelganlar } from './eslatma.js';
 import { hozir, oldingiOy } from './vaqt.js';
+import { versiya } from './versiya.js';
 
 /* ------------------------------------------------------------------ */
 /* rang — terminal qo'llab-quvvatlamasa o'zi o'chadi                   */
@@ -85,6 +86,7 @@ async function asosiy() {
   const v = hozir(cfg.vaqtMintaqasi);
 
   console.log(`\n${rang.qalin('\u{1F4D2} Daftar — terminal rejimi')}   ${rang.kul(`${cfg.xizmat}/${cfg.model}`)}`);
+  console.log(rang.kul(`   Versiya: ${versiya()}`));
   console.log(rang.kul(`   Baza:  ${cfg.bazaYoli}`));
   console.log(rang.kul(`   Bugun: ${v.sana} (${v.hafta}) — ${daftar.yozuvlar.length} yozuv`));
 

@@ -11,6 +11,7 @@ import { eslatmaniBoshlash, tugmalar } from './eslatma.js';
 import { excelTuzish, oylikHisobotMatni, ochiqlarMatni, qisqaSatr } from './hisobot.js';
 import { vositaniBajarish } from './vositalar.js';
 import { hozir, oldingiOy } from './vaqt.js';
+import { versiya } from './versiya.js';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -89,6 +90,7 @@ async function asosiy() {
   await telegram.setMyCommands(BUYRUQLAR);
 
   console.log(`✅ @${men.username} ishga tushdi`);
+  console.log(`   Versiya:  ${versiya()}`);
   console.log(`   Baza:     ${cfg.bazaYoli} (${daftar.yozuvlar.length} yozuv)`);
   console.log(`   Model:    ${cfg.xizmat} / ${cfg.model}${cfg.effort ? ` (effort: ${cfg.effort})` : ''}`);
   console.log(`   Vaqt:     ${cfg.vaqtMintaqasi}, eslatma soat ${cfg.eslatmaSoati}:00`);

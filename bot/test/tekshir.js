@@ -11,6 +11,7 @@ import { miyaYaratish } from '../src/miya.js';
 import { Daftar } from '../src/store.js';
 import { hozir } from '../src/vaqt.js';
 import { ovozdanMatn, OvozXatosi } from '../src/asr.js';
+import { versiya } from '../src/versiya.js';
 
 const OK = '✅';
 const XATO = '❌';
@@ -46,6 +47,7 @@ if (tizimPapkasi) {
 let cfg;
 try {
   cfg = sozlamalar();
+  console.log(`${OK} Kod versiyasi: ${versiya()}`);
   console.log(`${OK} .env o‘qildi`);
   console.log(`     Telegram token:  ${yashir(cfg.token)}`);
   console.log(`     Model:           ${cfg.xizmat} / ${cfg.model}`);

@@ -86,7 +86,9 @@ async function whisperOrqali(buffer, nom, cfg) {
     signal: AbortSignal.timeout(180000),
   });
 
-  if (!javob.ok) throw ovozXatosiTuzish(cfg.asr, javob.status, await javob.text().catch(() => ''));
+  if (!javob.ok) {
+    throw ovozXatosiTuzish(cfg.asr, javob.status, await javob.text().catch(() => ''), fayl);
+  }
   return (await javob.json()).text;
 }
 
@@ -103,7 +105,9 @@ async function deepgramOrqali(buffer, nom, cfg) {
     signal: AbortSignal.timeout(180000),
   });
 
-  if (!javob.ok) throw ovozXatosiTuzish(cfg.asr, javob.status, await javob.text().catch(() => ''));
+  if (!javob.ok) {
+    throw ovozXatosiTuzish(cfg.asr, javob.status, await javob.text().catch(() => ''), { nom, tur });
+  }
   const natija = await javob.json();
   return natija?.results?.channels?.[0]?.alternatives?.[0]?.transcript;
 }
@@ -113,7 +117,7 @@ async function deepgramOrqali(buffer, nom, cfg) {
  * 429 ikki xil bo'ladi: balans tugagani va haqiqiy chegara — ularni
  * ajratmasak, odam bekorga kutib o'tiradi.
  */
-function ovozXatosiTuzish(xizmat, holat, tana) {
+function ovozXatosiTuzish(xizmat, holat, tana, yuborilgan = {}) {
   const past = String(tana).toLowerCase();
   const balansTugagan = /no credits|insufficient|quota|billing|exceeded your current/.test(past);
   const kalit = KALIT_NOMI[xizmat] || 'kalit';
@@ -148,9 +152,12 @@ function ovozXatosiTuzish(xizmat, holat, tana) {
 
   if (/must be one of the following types|unsupported.*format|invalid file format/i.test(past)) {
     return new OvozXatosi(
-      `Ovoz xizmati (${xizmat}) fayl turini qabul qilmadi.\n`
-      + 'Telegram ovozli xabari odatda Ogg/Opus bo\u2018ladi va qo\u2018llab-quvvatlanadi \u2014 '
-      + 'demak bu odatiy bo\u2018lmagan fayl. Ovozli xabar sifatida qayta yuborib ko\u2018ring.',
+      `Ovoz xizmati (${xizmat}) fayl turini qabul qilmadi.\n\n`
+      + `Yuborilgan nom:  ${yuborilgan.nom || '(noma\u2019lum)'}\n`
+      + `Yuborilgan turi: ${yuborilgan.tur || '(noma\u2019lum)'}\n\n`
+      + 'Agar nom ".oga" bilan tugagan bo\u2018lsa, demak eski kod ishlab turibdi:\n'
+      + '  git pull  va botni qayta ishga tushiring (Ctrl+C, npm start).\n'
+      + '  Versiyani tekshirish:  npm run tekshir',
     );
   }
 
