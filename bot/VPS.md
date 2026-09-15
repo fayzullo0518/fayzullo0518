@@ -173,7 +173,7 @@ nano .env
 `nano` — oddiy matn muharriri. Kalitlaringizni to'ldiring:
 
 ```ini
-TELEGRAM_BOT_TOKEN=7035555224:AAE...
+TELEGRAM_BOT_TOKEN=1234567890:AAExxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 DEEPSEEK_API_KEY=sk-...
 OWNER_ID=
 OPENAI_API_KEY=sk-...        # ovozli xabar uchun
