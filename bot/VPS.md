@@ -383,7 +383,7 @@ qoladi. Bu ham zaxira, server bilan bog'liq emas.
 | Belgi | Sabab va yechim |
 |---|---|
 | `status` da `active (running)` yo'q | `journalctl -u daftar-bot -n 50` — sabab shu yerda |
-| Log'da `409` | Bot ikki joyda ishlayapti. Noutbukdagi nusxani to'xtating |
+| Log'da `409` | Bot ikki joyda ishlayapti (noutbukdagi nusxani to'xtating), yoki webhook o'rnatilgan (`npm run webhook-ochir`). `npm run tekshir` qaysi biri ekanini aytadi |
 | `.env fayli to'liq emas` | `.env` da token yoki kalit yo'q. `nano .env` |
 | `DeepSeek balansi tugagan` | platform.deepseek.com da hisobni to'ldiring |
 | `Host not in allowlist` | Serveringiz tarmog'i o'sha manzilni bloklayapti — provayderni almashtiring |

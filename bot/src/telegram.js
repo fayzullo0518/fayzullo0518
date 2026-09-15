@@ -79,6 +79,16 @@ export class Telegram {
     }).catch(() => null);
   }
 
+  /** Botga webhook o'rnatilganmi? Long polling u bilan birga ishlamaydi. */
+  webhookMalumoti() {
+    return this.chaqir('getWebhookInfo');
+  }
+
+  /** Webhook'ni olib tashlaydi — shundan keyin long polling ishlaydi */
+  webhookniOchirish() {
+    return this.chaqir('deleteWebhook', { drop_pending_updates: false });
+  }
+
   setMyCommands(buyruqlar) {
     return this.chaqir('setMyCommands', { commands: buyruqlar }).catch(() => null);
   }

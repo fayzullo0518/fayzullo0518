@@ -67,6 +67,25 @@ async function asosiy() {
     process.exit(1);
   });
 
+  // webhook o'rnatilgan bo'lsa long polling umuman ishlamaydi (409)
+  const webhook = await telegram.webhookMalumoti().catch(() => null);
+  if (webhook?.url) {
+    console.error([
+      '',
+      "\u274C Bu botga webhook o'rnatilgan:",
+      `     ${webhook.url}`,
+      '',
+      '   Webhook va long polling birga ishlamaydi, shuning uchun bot',
+      '   xabarlarni ololmaydi. Webhook ni olib tashlash:',
+      '',
+      '     npm run webhook-ochir',
+      '',
+      '   Shundan keyin qaytadan:  npm start',
+      '',
+    ].join('\n'));
+    process.exit(1);
+  }
+
   await telegram.setMyCommands(BUYRUQLAR);
 
   console.log(`✅ @${men.username} ishga tushdi`);
@@ -111,7 +130,24 @@ async function pollingHalqasi({ telegram, daftar, agent, cfg }) {
       kechikish = 1000;
     } catch (xato) {
       if (xato.kod === 409) {
-        console.error('❌ Bu bot boshqa joyda ham ishlayapti. Eski nusxasini to‘xtating.');
+        console.error([
+          '',
+          '\u274C Telegram 409: bu bot tokeni band.',
+          '',
+          '   Ikki sababdan biri:',
+          '',
+          "   1) Bot boshqa joyda ham ishlayapti - eski nusxasini to'xtating.",
+          '      Windows:  Get-Process node | Select-Object Id, StartTime',
+          '                Stop-Process -Id <ID>',
+          '      Linux:    sudo systemctl stop daftar-bot',
+          '                pkill -f "node src/index.js"',
+          '',
+          "   2) Botga webhook o'rnatilgan:",
+          '      npm run webhook-ochir',
+          '',
+          '   Qaysi biri ekanini bilish uchun:  npm run tekshir',
+          '',
+        ].join('\n'));
       } else {
         console.error(`[polling] ${xato.message} — ${Math.round(kechikish / 1000)}s dan keyin qayta`);
       }

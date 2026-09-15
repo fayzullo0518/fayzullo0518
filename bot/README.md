@@ -278,6 +278,7 @@ Kuniga ~25 xabar bo'lganda, taxminiy oylik:
 ```bash
 npm run sozla     # .env ni savol-javob bilan yaratish
 npm run chat      # terminalda agent bilan gaplashish
+npm run webhook-ochir # 409 xatosi: webhook ni olib tashlash
 npm run tekshir   # token, kalit, ovoz xizmati — hammasi ishlayaptimi?
 npm run llm-sinov # model o'zbek tilini qanchalik tushunadi?
 npm run demo      # butun botni soxta Telegram bilan ishlatib ko'rsatadi
@@ -347,7 +348,7 @@ Avval **`npm run tekshir`** ishlating — ko'pincha sababni o'zi aytadi.
 | Belgi | Sabab va yechim |
 |---|---|
 | `.env fayli to'liq emas` | `.env` da token yoki kalit yo'q |
-| `409` xatosi log'da | Bot ikki joyda ishlayapti — eskisini to'xtating |
+| `409` xatosi | Ikki sabab bor: bot ikki joyda ishlayapti, yoki webhook o'rnatilgan. `npm run tekshir` qaysi biri ekanini aytadi; webhook bo'lsa `npm run webhook-ochir` |
 | Bot javob bermaydi | `OWNER_ID` noto'g'ri. `/id` yozib tekshiring |
 | `DEEPSEEK_API_KEY noto'g'ri` | Kalit bekor qilingan yoki xato ko'chirilgan |
 | `DeepSeek balansi tugagan` | platform.deepseek.com da hisobni to'ldiring |

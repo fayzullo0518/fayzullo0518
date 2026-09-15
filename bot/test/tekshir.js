@@ -78,12 +78,52 @@ try {
 }
 
 /* 4. Telegram ------------------------------------------------------ */
+const telegram = new Telegram(cfg.token, cfg.telegramAsos);
+let telegramIshladi = false;
+
 try {
-  const men = await new Telegram(cfg.token).chaqir('getMe');
+  const men = await telegram.chaqir('getMe');
   console.log(`${OK} Telegram: @${men.username} (${men.first_name})`);
+  telegramIshladi = true;
 } catch (xato) {
   console.error(`${XATO} Telegram: ${xato.message}`);
   muammo += 1;
+}
+
+/* 4b. 409 ning sababi: webhook yoki ikkinchi nusxa ------------------ */
+if (telegramIshladi) {
+  // webhook long polling bilan birga ishlamaydi
+  try {
+    const webhook = await telegram.webhookMalumoti();
+    if (webhook.url) {
+      console.error(`${XATO} Botga webhook o'rnatilgan: ${webhook.url}`);
+      console.error('     Long polling u bilan ishlamaydi. Tuzatish:  npm run webhook-ochir');
+      muammo += 1;
+    } else {
+      console.log(`${OK} Webhook yo'q (long polling uchun to'g'ri)`);
+    }
+  } catch (xato) {
+    console.error(`${XATO} Webhook holatini bilib bo'lmadi: ${xato.message}`);
+    muammo += 1;
+  }
+
+  // bu tokenni boshqa jarayon o'qiyaptimi? 409 shuni bildiradi
+  try {
+    await telegram.chaqir('getUpdates', { offset: -1, timeout: 0, limit: 1 }, { kutish: 15000 });
+    console.log(`${OK} Tokenni boshqa hech kim o'qimayapti`);
+  } catch (xato) {
+    if (xato.kod === 409) {
+      console.error(`${XATO} Bu bot tokeni allaqachon band - boshqa nusxa ishlayapti.`);
+      console.error('     Windows:  Get-Process node | Select-Object Id, StartTime');
+      console.error('               Stop-Process -Id <ID>');
+      console.error('     Linux:    sudo systemctl stop daftar-bot');
+      console.error('               pkill -f "node src/index.js"');
+      muammo += 1;
+    } else {
+      console.error(`${XATO} getUpdates: ${xato.message}`);
+      muammo += 1;
+    }
+  }
 }
 
 /* 5. til modeli ---------------------------------------------------- */
