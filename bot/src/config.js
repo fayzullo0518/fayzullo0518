@@ -2,6 +2,7 @@
  * Sozlamalar — .env faylidan o'qiladi va bir marta tekshiriladi.
  * Noto'g'ri sozlama bilan bot umuman ishga tushmasin: xatoni darrov aytadi.
  */
+import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { config as dotenv } from 'dotenv';
@@ -9,7 +10,37 @@ import { config as dotenv } from 'dotenv';
 const bu = path.dirname(fileURLToPath(import.meta.url));
 export const ROOT = path.resolve(bu, '..');
 
-dotenv({ path: path.join(ROOT, '.env'), quiet: true });
+const ENV_YOLI = path.join(ROOT, '.env');
+dotenv({ path: ENV_YOLI, quiet: true });
+
+/** .env yo'q bo'lsa — nega yo'qligini aniqlashga harakat qilamiz */
+function envYoqligiHaqida() {
+  const qatorlar = ['.env fayli topilmadi.', '', `Qidirilgan joy:  ${ENV_YOLI}`];
+
+  let fayllar = [];
+  try {
+    fayllar = fs.readdirSync(ROOT);
+  } catch { /* papka o'qilmasa jim qolamiz */ }
+
+  // Windows'da Notepad "Save as" qilganda .env.txt bo'lib ketadi — mashhur tuzoq
+  const shubhali = fayllar.filter((f) => /^\.?env(\.|$)/i.test(f) && f !== '.env.example');
+  if (shubhali.length) {
+    qatorlar.push('', `Shunga o'xshash fayl bor:  ${shubhali.join(', ')}`);
+    qatorlar.push("Nomi aynan  .env  bo'lishi kerak, .txt qo'shimchasisiz.");
+    qatorlar.push('Windows:  Rename-Item .env.txt .env');
+  } else {
+    qatorlar.push('', 'Yaratish:');
+    qatorlar.push('  Windows:  Copy-Item .env.example .env ; notepad .env');
+    qatorlar.push('  Linux:    cp .env.example .env && nano .env');
+  }
+
+  if (!fayllar.includes('.env.example')) {
+    qatorlar.push('', "Diqqat: .env.example ham yo'q - siz bot papkasida emasdirsiz.");
+    qatorlar.push('Bot papkasi - ichida src/ va package.json bor papka.');
+  }
+
+  return qatorlar.join('\n');
+}
 
 const matn = (kalit, sukut = '') => String(process.env[kalit] ?? sukut).trim();
 
@@ -26,6 +57,8 @@ const effortBor = (model) => /^claude-(opus-(5|4-6|4-7|4-8)|sonnet-5|fable-5)/.t
 const SUKUT_MODEL = { deepseek: 'deepseek-chat', claude: 'claude-opus-5' };
 
 export function sozlamalar() {
+  if (!fs.existsSync(ENV_YOLI)) throw new Error(envYoqligiHaqida());
+
   const xatolar = [];
 
   const token = matn('TELEGRAM_BOT_TOKEN');
@@ -73,7 +106,10 @@ export function sozlamalar() {
 
   if (xatolar.length) {
     const xabar = xatolar.map((x) => `  • ${x}`).join('\n');
-    throw new Error(`.env fayli to‘liq emas:\n${xabar}\n\n.env.example dan nusxa oling.`);
+    throw new Error(
+      `.env fayli to‘liq emas:\n${xabar}\n\nFayl: ${ENV_YOLI}\n`
+      + 'Uni oching va yetishmayotgan qatorlarni to‘ldiring.',
+    );
   }
 
   const model = matn('LLM_MODEL') || SUKUT_MODEL[xizmat];

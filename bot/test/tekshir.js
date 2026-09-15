@@ -20,7 +20,26 @@ const yashir = (kalit) =>
 
 let muammo = 0;
 
+/* 0. papka o'rni --------------------------------------------------- */
+// Windows'da PowerShell'ni administrator sifatida ochib git clone qilsangiz,
+// loyiha System32 ichiga tushib qoladi. U yerda ishlatib bo'lmaydi.
+const ILDIZ = process.cwd();
+const tizimPapkasi = /[\\/](System32|SysWOW64)[\\/]/i.test(ILDIZ)
+  || /[\\/]Program Files/i.test(ILDIZ);
+
 console.log('\n\u{1F50E} Daftar bot — tekshiruv\n');
+
+if (tizimPapkasi) {
+  console.log(`${XATO} Loyiha tizim papkasida turibdi:`);
+  console.log(`     ${ILDIZ}`);
+  console.log("     Bu yerda ishlatib bo'lmaydi. Oddiy papkaga ko'chiring:");
+  console.log('       cd $HOME');
+  console.log('       git clone -b claude/agent-tariff-settings-m5z91j \\');
+  console.log('         https://github.com/fayzullo0518/fayzullo0518 daftar-bot');
+  console.log('       cd daftar-bot/bot');
+  console.log('');
+  muammo += 1;
+}
 
 /* 1. sozlamalar ---------------------------------------------------- */
 let cfg;
