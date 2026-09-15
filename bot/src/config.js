@@ -56,13 +56,18 @@ const effortBor = (model) => /^claude-(opus-(5|4-6|4-7|4-8)|sonnet-5|fable-5)/.t
 
 const SUKUT_MODEL = { deepseek: 'deepseek-chat', claude: 'claude-opus-5' };
 
-export function sozlamalar() {
+/**
+ * @param {{telegramShart?: boolean}} sozlash
+ *   telegramShart=false - terminal rejimi uchun: Telegram tokeni kerak emas.
+ */
+export function sozlamalar(sozlash = {}) {
+  const { telegramShart = true } = sozlash;
   if (!fs.existsSync(ENV_YOLI)) throw new Error(envYoqligiHaqida());
 
   const xatolar = [];
 
   const token = matn('TELEGRAM_BOT_TOKEN');
-  if (!token) xatolar.push('TELEGRAM_BOT_TOKEN kiritilmagan (@BotFather dan oling)');
+  if (!token && telegramShart) xatolar.push('TELEGRAM_BOT_TOKEN kiritilmagan (@BotFather dan oling)');
 
   // ── qaysi til modeli ishlatiladi ────────────────────────────────────
   const deepseekKalit = matn('DEEPSEEK_API_KEY');

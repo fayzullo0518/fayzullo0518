@@ -125,7 +125,10 @@ export class Agent {
 
       const natijalar = natija.chaqiruvlar.map((chaqiruv) => {
         const javob = vositaniBajarish(chaqiruv.nom, chaqiruv.kirish, ktx);
-        console.log(`[vosita] ${chaqiruv.nom} -> ${javob.ok ? 'ok' : `XATO: ${javob.xato}`}`);
+        // terminal rejimida bu loglar suhbatni to'sib qo'yadi
+        if (process.env.DAFTAR_JIM !== '1') {
+          console.log(`[vosita] ${chaqiruv.nom} -> ${javob.ok ? 'ok' : `XATO: ${javob.xato}`}`);
+        }
         return { id: chaqiruv.id, nom: chaqiruv.nom, matn: JSON.stringify(javob), xato: !javob.ok };
       });
 

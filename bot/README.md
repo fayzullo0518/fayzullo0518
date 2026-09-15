@@ -62,23 +62,63 @@ Kutish muddatini `.env` dagi `TASDIQ_DAQIQA` orqali o'zgartirasiz.
 
 ---
 
-## Ishga tushirish
+## Tez boshlash — 3 buyruq
 
-### 1. Kalitlar
-
-`.env` faylida ikkita majburiy narsa bor — **Telegram token** (@BotFather dan)
-va **DeepSeek kaliti** ([platform.deepseek.com](https://platform.deepseek.com)).
-Ikkalasi ham to'ldirilgan bo'lsa keyingi qadamga o'ting.
-
-Yangidan sozlash kerak bo'lsa:
+Telegram, VPS, bot tokeni — hech qaysi kerak emas. Faqat **DeepSeek kaliti**
+va **Node.js 20+**. PowerShell'da ham, Mac/Linux terminalida ham bir xil.
 
 ```bash
-cd bot
-cp .env.example .env
-nano .env
+npm install
+npm run sozla     # kalitni so'raydi, .env ni o'zi yaratadi
+npm run chat      # agent bilan terminalda gaplashasiz
 ```
 
-### 2. Ovozli xabar uchun kalit
+`npm run chat` shunday ko'rinadi:
+
+```
+📒 Daftar — terminal rejimi   deepseek/deepseek-chat
+   Bugun: 2026-09-15 (Seshanba) — 0 yozuv
+
+> Sardorga UZI apparati berdim, 12 mln, 1-oktabrgacha to'laydi
+🤖 Saqladim: Sardor — UZI apparati, 12 000 000 so'm, 1-oktabrgacha.
+
+> Akmalga besh million qarz berdim, oyning oxirida qaytaradi
+🤖 Saqladim: Akmal — 5 000 000 so'm, 30-sentabrgacha.
+
+> /royxat
+📋 Qaytarilmaganlar — 2 ta
+📆 Keyinroq (2)
+   Y0002 • Akmal • 5 000 000 UZS • 30.09.2026 gacha
+   Y0001 • Sardor • UZI apparati • 12 000 000 UZS • 01.10.2026 gacha
+
+> /excel
+   📊 2 qator saqlandi:
+   C:\Users\siz\daftar-bot\bot\hisobotlar\daftar-2026-09-15.xlsx
+```
+
+Bir xil daftar, bir xil vositalar, bir xil yozuvlar — keyin Telegramga
+o'tsangiz, hamma yozuvlaringiz joyida turadi.
+
+> **Windows'da:** loyihani `C:\WINDOWS\System32` ichiga klonlamang.
+> PowerShell'ni **administrator sifatida emas**, oddiy holda oching —
+> u `C:\Users\ismingiz` dan boshlanadi, o'sha yerda klonlang.
+
+---
+
+## Telegram boti sifatida ishga tushirish
+
+Terminalda sinab ko'rgach, botga o'tish oson.
+
+### 1. Telegram tokeni
+
+[@BotFather](https://t.me/BotFather) ga `/newbot` yozing. Nom va username
+so'raydi, oxirida token beradi.
+
+```bash
+npm run sozla     # endi Telegram tokenini ham kiritasiz
+```
+
+### 2. Ovozli xabar uchun kalit (ixtiyoriy)
 
 DeepSeek'da ovozni matnga o'giradigan xizmat **yo'q**, shuning uchun bunga
 alohida kalit kerak. Ikkitasidan **bittasi** yetarli:
@@ -89,39 +129,23 @@ alohida kalit kerak. Ikkitasidan **bittasi** yetarli:
   `DEEPGRAM_API_KEY`. Tezroq, bepul boshlang'ich krediti bor.
 
 Kalit qo'shmasangiz bot ishlayveradi — faqat ovoz kelganda «yozib yuboring»
-deb javob beradi. **Yozma xabarlar to'liq ishlaydi.**
+deb javob beradi.
 
-### 3. O'rnatish va tekshirish
-
-```bash
-npm install
-npm run tekshir
-```
-
-`tekshir` har bir xizmatni alohida sinaydi va nima ishlayotganini aytadi:
-
-```
-✅ .env o'qildi
-✅ OWNER_ID: 123456789
-✅ Baza yoziladi: .../bot/data/daftar.json
-✅ Telegram: @sizning_botingiz
-✅ deepseek javob berdi: "ha"
-✅ Ovoz xizmati (openai) kalitni qabul qildi
-
-✅ Hammasi joyida. "npm start" bilan ishga tushiring.
-```
-
-### 4. Ishga tushirish
+### 3. Tekshirish va ishga tushirish
 
 ```bash
+npm run tekshir   # har bir xizmatni alohida sinaydi
 npm start
 ```
 
-### 5. OWNER_ID ni qo'yish (birinchi marta)
+### 4. OWNER_ID ni qo'yish
 
-Telegramda botingizga **`/id`** deb yozing. U sizga raqamingizni aytadi.
-Shu raqamni `.env` dagi `OWNER_ID` ga qo'ying va botni qayta ishga tushiring
-(`Ctrl+C`, keyin `npm start`).
+Telegramda botingizga **`/id`** deb yozing. U raqamingizni aytadi:
+
+```bash
+npm run sozla     # OWNER_ID ga shu raqamni kiriting
+npm start
+```
 
 **Tayyor.** Endi istalgan narsani yozib yoki aytib yuboring.
 
@@ -252,6 +276,8 @@ Kuniga ~25 xabar bo'lganda, taxminiy oylik:
 ## Sinov va demo
 
 ```bash
+npm run sozla     # .env ni savol-javob bilan yaratish
+npm run chat      # terminalda agent bilan gaplashish
 npm run tekshir   # token, kalit, ovoz xizmati — hammasi ishlayaptimi?
 npm run llm-sinov # model o'zbek tilini qanchalik tushunadi?
 npm run demo      # butun botni soxta Telegram bilan ishlatib ko'rsatadi
@@ -337,7 +363,9 @@ Avval **`npm run tekshir`** ishlating — ko'pincha sababni o'zi aytadi.
 ```
 bot/
 ├── src/
-│   ├── index.js      — kirish nuqtasi, Telegram xabarlari va tugmalar
+│   ├── index.js      — Telegram boti: xabarlar va tugmalar
+│   ├── chat.js       — terminal rejimi (Telegramsiz)
+│   ├── sozla.js      — .env yaratish ustasi
 │   ├── agent.js      — vositalar sikli (modeldan mustaqil)
 │   ├── miya.js       — DeepSeek / Claude qatlami
 │   ├── vositalar.js  — agent vositalari: yozish, qidirish, belgilash, hisobot
