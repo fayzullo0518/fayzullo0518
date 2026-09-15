@@ -139,6 +139,12 @@ npm run sozla     # "Ovozli xabar uchun kalit" savoliga qo'ying
 Usta kalitni prefiksidan tanib, to'g'ri joyga yozadi: `gsk_` → Groq,
 `sk-` → OpenAI.
 
+> **Turkcha chiqsa nima bo'ladi?** Whisper o'zbekchani ba'zan turkchaga
+> o'xshatib yozadi (ikkalasi ham turkiy til). Bot buni uch joyda hal qiladi:
+> Whisper'ga o'zbekcha namuna beradi, turk harflarini o'zbek lotiniga
+> o'giradi (`ş`→`sh`, `ç`→`ch`, `ö`→`o'`, `ı`→`i`), va agentga turkcha
+> so'zlarning o'zbekcha ma'nosini o'rgatadi. Natijada yozuv to'g'ri chiqadi.
+
 Kalit qo'shmasangiz bot ishlayveradi — faqat ovoz kelganda «yozib yuboring»
 deb javob beradi. **Yozma xabarlar to'liq ishlaydi.**
 
@@ -296,7 +302,7 @@ npm run holat     # qaysi kod, qayerda, nechta nusxa ishlayapti
 npm run tekshir   # token, kalit, ovoz xizmati — hammasi ishlayaptimi?
 npm run llm-sinov # model o'zbek tilini qanchalik tushunadi?
 npm run demo      # butun botni soxta Telegram bilan ishlatib ko'rsatadi
-npm test          # 55 ta sinov — tarmoqqa ulanmasdan
+npm test          # 58 ta sinov — tarmoqqa ulanmasdan
 npm run check     # hamma fayl sintaksisi
 ```
 
@@ -369,6 +375,7 @@ Avval **`npm run tekshir`** ishlating — ko'pincha sababni o'zi aytadi.
 | `Host not in allowlist` | Serveringiz tarmog'i o'sha manzilni bloklayapti |
 | «Balansi tugagan» | Ovoz xizmatining hisobi bo'sh. Bepul muqobil: `console.groq.com` dan `gsk_` kalit olib, `npm run sozla` |
 | Ovoz «o'girib bo'lmadi» | Ovoz kaliti yo'q yoki noto'g'ri. `npm run tekshir` aniq aytadi |
+| Ovoz turkcha yozilyapti | Bot o'zi tuzatadi. To'liq o'chirish: `.env` da `ASR_UZBEKLASHTIR=0` |
 | Eslatma kelmayapti | `OWNER_ID` bo'sh bo'lsa eslatma ishlamaydi |
 | Ism noto'g'ri yozilgan | Tasdiq xabariga «ismi Sardorbek» deb javob yozing |
 
@@ -397,7 +404,7 @@ bot/
 │   ├── ornatish.sh   — systemd xizmatini yaratadi
 │   └── zaxira.sh     — kunlik zaxira nusxa
 ├── test/
-│   ├── smoke.js      — 55 ta sinov
+│   ├── smoke.js      — 58 ta sinov
 │   ├── demo.js       — soxta Telegram bilan to'liq ishga tushirish
 │   ├── llm-sinov.js  — model o'zbek tilini qanday tushunishi
 │   └── tekshir.js    — jonli diagnostika

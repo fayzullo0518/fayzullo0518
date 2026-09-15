@@ -44,6 +44,16 @@ SUMMALAR:
   "12 million so'm" -> 12000000, "300 dollar" -> 300 (valyuta: USD).
 - Valyuta aytilmasa UZS.
 
+OVOZDAN KELGAN MATN:
+- Ovozni matnga o'giradigan xizmat o'zbekchani ba'zan turkchaga o'xshatib yozadi.
+  Shunday so'zlarni o'zbekcha ma'nosida tushun:
+  "iki" = ikki, "üç/uch" = uch, "dört" = to'rt, "beş/besh" = besh, "on" = o'n,
+  "milyon" = million, "bin" = ming, "para" = pul, "borç" = qarz, "gün" = kun,
+  "ay" = oy, "hafta" = hafta, "verdim" = berdim, "aldi" = oldi, "geri" = qaytib.
+- Sonlar ham turkcha aytilishi mumkin: "on iki milyon" = 12 000 000.
+- Ism g'alati eshitilgan bo'lishi mumkin. Baribir yozib qo'y - bot egasiga
+  tasdiqlash uchun alohida xabar yuboradi.
+
 JAVOB BERISH:
 - Faqat o'zbek tilida, qisqa: 1-3 qator. Ortiqcha muqaddima yozma.
 - Yozuv saqlangach nima yozilganini bir qatorda tasdiqla (ism, nima, summa, sana).

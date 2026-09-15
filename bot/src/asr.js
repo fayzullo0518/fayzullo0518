@@ -39,6 +39,31 @@ export function faylniTayyorlash(nom) {
   return { nom: `${asos}.${kengaytma}`, tur: TURLAR[kengaytma] || 'audio/ogg' };
 }
 
+/**
+ * Whisper o'zbekchani ko'pincha turkcha deb o'ylab, turk imlosida yozadi
+ * (ikkalasi ham turkiy til). Harflar bir-biriga aniq mos keladi, shuning
+ * uchun ularni qaytarib o'girish xavfsiz: "beş milyon" -> "besh milyon".
+ * So'zlarga tegilmaydi - ularni til modeli o'zi tushunadi.
+ */
+const TURK_HARFLARI = {
+  '\u00e7': 'ch', '\u00c7': 'Ch',   // ç
+  '\u015f': 'sh', '\u015e': 'Sh',   // ş
+  '\u0131': 'i', '\u0130': 'I',     // ı, İ
+  '\u011f': "g'", '\u011e': "G'",   // ğ
+  '\u00f6': "o'", '\u00d6': "O'",   // ö
+  '\u00fc': 'u', '\u00dc': 'U',     // ü
+  '\u00e2': 'a', '\u00ee': 'i', '\u00fb': 'u',
+};
+
+const TURKCHA_BOR = new RegExp(`[${Object.keys(TURK_HARFLARI).join('')}]`);
+
+/** Turk imlosidagi o'zbekchani o'zbek lotiniga qaytaradi */
+export function ozbekLotinga(matn) {
+  const xom = String(matn ?? '');
+  if (!TURKCHA_BOR.test(xom)) return xom;   // toza bo'lsa tegmaymiz
+  return xom.replace(/./gu, (harf) => TURK_HARFLARI[harf] ?? harf);
+}
+
 export class OvozXatosi extends Error {}
 
 const KALIT_NOMI = {
@@ -63,7 +88,7 @@ export async function ovozdanMatn(buffer, nom, cfg) {
     ? await deepgramOrqali(buffer, nom, cfg)
     : await whisperOrqali(buffer, nom, cfg);   // openai va groq bir xil API
 
-  const tozalangan = String(matn || '').trim();
+  const tozalangan = (cfg.asrUzbeklashtir === false ? String(matn ?? '') : ozbekLotinga(matn)).trim();
   if (!tozalangan) {
     throw new OvozXatosi('Ovozdan matn chiqmadi — qaytadan, sekinroq aytib ko‘ring.');
   }
@@ -76,8 +101,12 @@ async function whisperOrqali(buffer, nom, cfg) {
   const forma = new FormData();
   forma.append('file', new Blob([buffer], { type: fayl.tur }), fayl.nom);
   forma.append('model', cfg.asrModel);
-  forma.append('language', 'uz');
+  forma.append('language', cfg.asrTil || 'uz');
   forma.append('response_format', 'json');
+  forma.append('temperature', '0');
+  // "prompt" Whisper uchun uslub namunasi: o'zbek lotini va shu sohaning
+  // so'zlari berilsa, turkchaga og'ib ketish ancha kamayadi
+  if (cfg.asrYoriqnoma) forma.append('prompt', cfg.asrYoriqnoma);
 
   const javob = await fetch(`${cfg.asrAsos}/v1/audio/transcriptions`, {
     method: 'POST',
@@ -96,7 +125,7 @@ async function whisperOrqali(buffer, nom, cfg) {
 async function deepgramOrqali(buffer, nom, cfg) {
   const { tur } = faylniTayyorlash(nom);
   const manzil = `${cfg.asrAsos}/v1/listen`
-    + `?model=${encodeURIComponent(cfg.asrModel)}&language=uz&smart_format=true&punctuate=true`;
+    + `?model=${encodeURIComponent(cfg.asrModel)}&language=${encodeURIComponent(cfg.asrTil || 'uz')}&smart_format=true&punctuate=true`;
 
   const javob = await fetch(manzil, {
     method: 'POST',

@@ -12,7 +12,7 @@ import { VOSITALAR, vositaniBajarish } from '../src/vositalar.js';
 import { excelTuzish, oylikHisobotMatni, ochiqlarMatni, qisqaSatr } from '../src/hisobot.js';
 import { muddatiKelganlar, eslatmaMatni, tugmalar } from '../src/eslatma.js';
 import { esc } from '../src/telegram.js';
-import { faylniTayyorlash } from '../src/asr.js';
+import { faylniTayyorlash, ozbekLotinga } from '../src/asr.js';
 import { Agent } from '../src/agent.js';
 import { miyaYaratish, MiyaXatosi } from '../src/miya.js';
 import { tasdiqlarniYopish } from '../src/eslatma.js';
@@ -978,6 +978,41 @@ sinov('ovoz: notanish yoki bo\u2018sh nom xavfsiz turga tushadi', () => {
   assert.deepEqual(faylniTayyorlash(''), { nom: 'audio.ogg', tur: 'audio/ogg' });
   assert.deepEqual(faylniTayyorlash(null), { nom: 'audio.ogg', tur: 'audio/ogg' });
   assert.equal(faylniTayyorlash('nimadir.xyz').nom, 'nimadir.ogg');
+});
+
+sinov('ovoz: turk imlosi o\u2018zbek lotiniga o\u2018giriladi', () => {
+  const holatlar = [
+    ['be\u015f milyon', "besh milyon"],
+    ['vaqtin\u00e7a', 'vaqtincha'],
+    ['qaytarad\u0131', 'qaytaradi'],
+    ['s\u00f6m', "so'm"],
+    ['to\u011fri', "tog'ri"],
+    ['\u00fc\u00e7 y\u00fcz', 'uch yuz'],
+    ['UZ\u0130', 'UZI'],
+    ['\u00c7ori \u015eodmon', 'Chori Shodmon'],
+  ];
+  for (const [turkcha, kutilgan] of holatlar) {
+    assert.equal(ozbekLotinga(turkcha), kutilgan, turkcha);
+  }
+});
+
+sinov('ovoz: toza o\u2018zbekchaga tegilmaydi', () => {
+  const toza = [
+    "Sardorga UZI apparati berdim, 12 mln, 1-oktabrgacha to'laydi",
+    'Akmal qaytardi',
+    "5 000 000 so\u2018m",
+    '',
+  ];
+  for (const matn of toza) assert.equal(ozbekLotinga(matn), matn, matn);
+  assert.equal(ozbekLotinga(null), '');
+  assert.equal(ozbekLotinga(undefined), '');
+});
+
+sinov('ovoz: aralash matn ham to\u2018g\u2018ri o\u2018giriladi', () => {
+  assert.equal(
+    ozbekLotinga('Sardorga UZ\u0130 apparat\u0131 berdim, on iki milyon s\u00f6m'),
+    "Sardorga UZI apparati berdim, on iki milyon so'm",
+  );
 });
 
 /* ================================================================== */

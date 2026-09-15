@@ -57,6 +57,16 @@ const effortBor = (model) => /^claude-(opus-(5|4-6|4-7|4-8)|sonnet-5|fable-5)/.t
 const SUKUT_MODEL = { deepseek: 'deepseek-chat', claude: 'claude-opus-5' };
 
 /**
+ * Whisper uchun uslub namunasi. Model shu matnga qarab imlo va so'z
+ * tanlaydi, shuning uchun bu yerda o'zbek lotini va daftarning odatiy
+ * so'zlari turadi - turkchaga og'ib ketmasligi uchun.
+ */
+const ASR_YORIQNOMA = "O'zbek tilidagi yozuv. Misollar: Sardorga UZI apparati berdim, "
+  + "o'n ikki million so'm, birinchi oktabrgacha to'laydi. Akmalga besh million qarz "
+  + "berdim, oyning oxirida qaytaradi. Jasurga kardiograf vaqtincha berdim, yigirma "
+  + "kundan keyin qaytaradi. Nodir qarzini qaytardi.";
+
+/**
  * @param {{telegramShart?: boolean}} sozlash
  *   telegramShart=false - terminal rejimi uchun: Telegram tokeni kerak emas.
  */
@@ -159,6 +169,9 @@ export function sozlamalar(sozlash = {}) {
     asrKalit: ASR_SUKUT.kalit,
     asrModel: matn('ASR_MODEL') || ASR_SUKUT.model,
     asrAsos: (matn('ASR_ASOS') || ASR_SUKUT.asos).replace(/\/+$/, ''),
+    asrTil: matn('ASR_TIL', 'uz'),
+    asrYoriqnoma: matn('ASR_YORIQNOMA', ASR_YORIQNOMA),
+    asrUzbeklashtir: matn('ASR_UZBEKLASHTIR', '1') !== '0',
 
     bazaYoli: matn('BAZA_YOLI') || path.join(ROOT, 'data', 'daftar.json'),
   };
