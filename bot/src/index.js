@@ -10,6 +10,8 @@ import { ovozdanMatn, OvozXatosi } from './asr.js';
 import { eslatmaniBoshlash, tugmalar } from './eslatma.js';
 import { excelTuzish, oylikHisobotMatni, ochiqlarMatni, qisqaSatr } from './hisobot.js';
 import { vositaniBajarish } from './vositalar.js';
+import { ismlarniYigish, whisperYoriqnomasi } from './ismlar.js';
+import { ovozniTozalash } from './tozalash.js';
 import { hozir, oldingiOy } from './vaqt.js';
 import { versiya } from './versiya.js';
 import path from 'node:path';
@@ -20,6 +22,7 @@ const BUYRUQLAR = [
   { command: 'excel', description: 'Excel hisobot yuborish' },
   { command: 'oy', description: 'Shu oy bo‘yicha hisobot' },
   { command: 'otganoy', description: 'O‘tgan oy bo‘yicha hisobot' },
+  { command: 'ismlar', description: 'Ovoz uchun tanish ismlar' },
   { command: 'bekor', description: 'Suhbat tarixini tozalash' },
   { command: 'id', description: 'Telegram ID ni ko‘rsatish' },
   { command: 'yordam', description: 'Qanday ishlashi haqida' },
@@ -41,6 +44,7 @@ Eshitganimni yozma holatda qaytarib yuboraman. Noto‘g‘ri bo‘lsa tuzatib
 yozasiz. ${cfg.tasdiqDaqiqa} daqiqada javob bo‘lmasa, to‘g‘ri deb saqlayman.
 
 <b>Buyruqlar:</b>
+/ismlar - ovoz uchun tanish ismlar
 /royxat — qaytarilmaganlar
 /excel — Excel fayl (3 varaq)
 /oy — shu oy hisoboti
@@ -210,7 +214,8 @@ async function xabarniIshlash(xabar, { telegram, daftar, agent, cfg }) {
 
   // ── buyruqlar ────────────────────────────────────────────────────
   const buyruq = xabar.text?.match(/^\/([a-z]+)/i)?.[1]?.toLowerCase();
-  if (buyruq && await buyruqniIshlash(buyruq, { chatId, telegram, daftar, cfg })) return;
+  const argument = xabar.text?.replace(/^\/[a-z]+(@\S+)?\s*/i, '').trim() || '';
+  if (buyruq && await buyruqniIshlash(buyruq, { chatId, telegram, daftar, cfg, argument })) return;
 
   // ── matn yoki ovoz ───────────────────────────────────────────────
   let matn = (xabar.text || xabar.caption || '').trim();
@@ -223,9 +228,22 @@ async function xabarniIshlash(xabar, { telegram, daftar, agent, cfg }) {
     await telegram.sendChatAction(chatId, 'typing');
     try {
       const fayl = await telegram.faylniYuklash(ovoz.file_id);
-      matn = await ovozdanMatn(fayl.buffer, fayl.nom, cfg);
+
+      // tanish ismlarni Whisper'ga oldindan aytamiz - ismni to'g'ri
+      // eshitishning eng ta'sirli yo'li shu
+      const ismlar = ismlarniYigish(daftar, cfg);
+      matn = await ovozdanMatn(fayl.buffer, fayl.nom, {
+        ...cfg,
+        asrYoriqnoma: whisperYoriqnomasi(ismlar, cfg),
+      });
+
+      // keyin matnni o'zbekchaga keltiramiz (turkcha so'zlar, chala ismlar)
+      if (cfg.asrTozalash) {
+        matn = (await ovozniTozalash({ matn, ismlar, miya: agent.miya })).matn;
+      }
+
       manba = 'ovoz';
-      // eshitganini darrov qaytarib yuboramiz — egasi xatoni shu zahoti ko'rsin
+      // eshitganini darrov qaytarib yuboramiz - egasi xatoni shu zahoti ko'rsin
       await telegram.sendMessage(chatId, `\u{1F3A4} <b>Eshitganim:</b>\n<i>${esc(matn)}</i>`);
     } catch (xato) {
       const xabarMatni = xato instanceof OvozXatosi ? xato.message : `Ovozni o‘girib bo‘lmadi: ${xato.message}`;
@@ -286,7 +304,7 @@ async function tasdiqSorash(yozuvlar, { chatId, telegram, daftar, cfg }) {
 }
 
 /** @returns {Promise<boolean>} buyruq tanildimi */
-async function buyruqniIshlash(buyruq, { chatId, telegram, daftar, cfg }) {
+async function buyruqniIshlash(buyruq, { chatId, telegram, daftar, cfg, argument = '' }) {
   const v = hozir(cfg.vaqtMintaqasi);
 
   switch (buyruq) {
@@ -320,6 +338,32 @@ async function buyruqniIshlash(buyruq, { chatId, telegram, daftar, cfg }) {
         oylikHisobotMatni(daftar.yozuvlar, oldingiOy(v.oyKodi), cfg.vaqtMintaqasi),
       );
       return true;
+
+    case 'ismlar': {
+      const qoshiladigan = argument
+        ? argument.split(/[,;]/).map((i) => i.trim()).filter(Boolean)
+        : [];
+
+      if (qoshiladigan.length) {
+        const yangilar = daftar.ismQoshish(qoshiladigan);
+        await telegram.sendMessage(chatId, yangilar.length
+          ? `\u2705 Qo'shildi: ${esc(yangilar.join(', '))}`
+          : "Bu ismlar allaqachon ro'yxatda.");
+        return true;
+      }
+
+      const hammasi = ismlarniYigish(daftar, cfg);
+      await telegram.sendMessage(chatId, [
+        `\u{1F464} <b>Tanish ismlar - ${hammasi.length} ta</b>`,
+        hammasi.length ? `   ${esc(hammasi.join(', '))}` : "   (hozircha yo'q)",
+        '',
+        'Bu ismlarni ovoz xizmati oldindan biladi va shuning uchun',
+        "ularni to'g'ri yozadi.",
+        '',
+        "Qo'shish:  <code>/ismlar Sardorbek, Akmal Qodirov</code>",
+      ].join('\n'));
+      return true;
+    }
 
     case 'bekor':
       daftar.tarixniTozalash(chatId);

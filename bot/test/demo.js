@@ -81,6 +81,15 @@ const server = http.createServer(async (sorov, javob) => {
 
   // ── soxta DeepSeek ─────────────────────────────────────────────────
   if (yol === '/chat/completions') {
+    // matn tozalash chaqiruvi - sahna navbatini yemasligi kerak
+    const sorovTanasi = JSON.parse(xom.toString('utf8'));
+    const tizim = sorovTanasi.messages?.find((x) => x.role === 'system')?.content || '';
+    if (/transkriptini tuzatuvchisan/.test(tizim)) {
+      const oxirgi = sorovTanasi.messages.at(-1).content.replace(/^[\s\S]*Matn:\s*/, '');
+      jsonJavob(javob, { choices: [{ message: { role: 'assistant', content: oxirgi }, finish_reason: 'stop' }] });
+      return;
+    }
+
     const keyingi = llmNavbati.shift();
     if (!keyingi) {
       jsonJavob(javob, { choices: [{ message: { role: 'assistant', content: 'Tayyor.' }, finish_reason: 'stop' }] });

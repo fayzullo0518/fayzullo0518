@@ -139,11 +139,20 @@ npm run sozla     # "Ovozli xabar uchun kalit" savoliga qo'ying
 Usta kalitni prefiksidan tanib, to'g'ri joyga yozadi: `gsk_` → Groq,
 `sk-` → OpenAI.
 
-> **Turkcha chiqsa nima bo'ladi?** Whisper o'zbekchani ba'zan turkchaga
-> o'xshatib yozadi (ikkalasi ham turkiy til). Bot buni uch joyda hal qiladi:
-> Whisper'ga o'zbekcha namuna beradi, turk harflarini o'zbek lotiniga
-> o'giradi (`ş`→`sh`, `ç`→`ch`, `ö`→`o'`, `ı`→`i`), va agentga turkcha
-> so'zlarning o'zbekcha ma'nosini o'rgatadi. Natijada yozuv to'g'ri chiqadi.
+> **Turkcha chiqsa yoki ismni tanimasa?** Whisper o'zbekchani ba'zan
+> turkchaga o'xshatib yozadi va ismlarni chalkashtiradi. Bot buni to'rt
+> bosqichda hal qiladi:
+>
+> 1. **Ismlaringizni oldindan aytadi.** Daftardagi va `/ismlar` bilan
+>    qo'shilgan ismlar Whisper'ga beriladi - ismni to'g'ri yozishning eng
+>    ta'sirli yo'li shu.
+> 2. Whisper'ga o'zbek lotinidagi namuna beradi.
+> 3. Turk harflarini o'zbekchaga o'giradi (`s` -> `sh`, `c` -> `ch`).
+> 4. Matnni til modelidan o'tkazib, turkcha so'zlarni o'zbekchaga o'giradi
+>    va ismni tanish ro'yxatiga yaqinlashtiradi.
+>
+> **Birinchi ish:** ovozni ishlatishdan oldin ismlarni qo'shing -
+> `/ismlar Sardorbek, Akmal Qodirov, Jasur`. Farqi sezilarli bo'ladi.
 
 Kalit qo'shmasangiz bot ishlayveradi — faqat ovoz kelganda «yozib yuboring»
 deb javob beradi. **Yozma xabarlar to'liq ishlaydi.**
@@ -179,6 +188,7 @@ npm start
 | `/excel` | Excel fayl: Hammasi, Qaytarilmagan, Qaytarilgan varaqlari |
 | `/oy` | Shu oy hisoboti |
 | `/otganoy` | O'tgan oy hisoboti |
+| `/ismlar` | Ovoz uchun tanish ismlar. `/ismlar Sardorbek, Akmal` bilan qo'shiladi |
 | `/bekor` | Suhbat tarixini tozalaydi (yozuvlarga tegmaydi) |
 | `/id` | Telegram ID ni ko'rsatadi |
 | `/yordam` | Qisqacha qo'llanma |
@@ -255,6 +265,8 @@ Har kuni soat 3:00 da nusxa oladi, 30 kunlik tarix saqlaydi.
 | `GROQ_API_KEY` | — | Ovoz uchun, bepul limiti bor |
 | `OPENAI_API_KEY` | — | Ovoz uchun, pullik |
 | `ASR_MODEL` | xizmatga qarab | Ovoz modeli (odatda tegish shart emas) |
+| `ASR_ISMLAR` | - | Qo'shimcha ismlar, vergul bilan |
+| `ASR_TOZALASH` | `1` | Matnni model bilan o'zbekchaga keltirish; `0` - o'chirish |
 | `LLM_XIZMATI` | avtomatik | `deepseek` yoki `claude` |
 | `LLM_MODEL` | `deepseek-chat` | Claude uchun: `claude-opus-5` |
 | `TIMEZONE` | `Asia/Tashkent` | Sanalar shu mintaqada hisoblanadi |
@@ -302,7 +314,7 @@ npm run holat     # qaysi kod, qayerda, nechta nusxa ishlayapti
 npm run tekshir   # token, kalit, ovoz xizmati — hammasi ishlayaptimi?
 npm run llm-sinov # model o'zbek tilini qanchalik tushunadi?
 npm run demo      # butun botni soxta Telegram bilan ishlatib ko'rsatadi
-npm test          # 58 ta sinov — tarmoqqa ulanmasdan
+npm test          # 67 ta sinov — tarmoqqa ulanmasdan
 npm run check     # hamma fayl sintaksisi
 ```
 
@@ -395,6 +407,8 @@ bot/
 │   ├── store.js      — JSON baza (atomar yozuv, zaxira, tasdiq holati)
 │   ├── telegram.js   — Telegram Bot API mijozi
 │   ├── asr.js        — ovozni matnga o'girish
+│   ├── ismlar.js     — ovoz uchun tanish ismlar
+│   ├── tozalash.js   — transkriptni o'zbekchaga keltirish
 │   ├── hisobot.js    — Excel va oylik xulosa
 │   ├── eslatma.js    — kunlik/oylik jadval + tasdiq muddati
 │   ├── xlsx.js       — kutubxonasiz .xlsx yozuvchi
@@ -404,7 +418,7 @@ bot/
 │   ├── ornatish.sh   — systemd xizmatini yaratadi
 │   └── zaxira.sh     — kunlik zaxira nusxa
 ├── test/
-│   ├── smoke.js      — 58 ta sinov
+│   ├── smoke.js      — 67 ta sinov
 │   ├── demo.js       — soxta Telegram bilan to'liq ishga tushirish
 │   ├── llm-sinov.js  — model o'zbek tilini qanday tushunishi
 │   └── tekshir.js    — jonli diagnostika

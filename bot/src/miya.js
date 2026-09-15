@@ -58,8 +58,10 @@ class DeepseekMiya {
         body: JSON.stringify({
           model: this.model,
           messages,
-          tools: openaiVositalari(vositalar),
-          tool_choice: 'auto',
+          // vositasiz chaqiruv ham bo'ladi (matn tozalash) - bo'sh ro'yxat yubormaymiz
+          ...(vositalar.length
+            ? { tools: openaiVositalari(vositalar), tool_choice: 'auto' }
+            : {}),
           temperature: this.harorat,
           max_tokens: 4000,
         }),
@@ -155,8 +157,8 @@ class ClaudeMiya {
       model: this.model,
       max_tokens: 8000,
       system: [{ type: 'text', text: this.yoriqnoma, cache_control: { type: 'ephemeral' } }],
-      tools: vositalar,
       messages,
+      ...(vositalar.length ? { tools: vositalar } : {}),
     };
     if (this.effort) sorov.output_config = { effort: this.effort };
 

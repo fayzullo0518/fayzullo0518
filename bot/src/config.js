@@ -172,6 +172,8 @@ export function sozlamalar(sozlash = {}) {
     asrTil: matn('ASR_TIL', 'uz'),
     asrYoriqnoma: matn('ASR_YORIQNOMA', ASR_YORIQNOMA),
     asrUzbeklashtir: matn('ASR_UZBEKLASHTIR', '1') !== '0',
+    asrIsmlar: matn('ASR_ISMLAR'),
+    asrTozalash: matn('ASR_TOZALASH', '1') !== '0',
 
     bazaYoli: matn('BAZA_YOLI') || path.join(ROOT, 'data', 'daftar.json'),
   };

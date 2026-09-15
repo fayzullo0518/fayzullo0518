@@ -13,6 +13,8 @@ import { excelTuzish, oylikHisobotMatni, ochiqlarMatni, qisqaSatr } from '../src
 import { muddatiKelganlar, eslatmaMatni, tugmalar } from '../src/eslatma.js';
 import { esc } from '../src/telegram.js';
 import { faylniTayyorlash, ozbekLotinga } from '../src/asr.js';
+import { ismlarniYigish, whisperYoriqnomasi } from '../src/ismlar.js';
+import { ovozniTozalash } from '../src/tozalash.js';
 import { Agent } from '../src/agent.js';
 import { miyaYaratish, MiyaXatosi } from '../src/miya.js';
 import { tasdiqlarniYopish } from '../src/eslatma.js';
@@ -1013,6 +1015,130 @@ sinov('ovoz: aralash matn ham to\u2018g\u2018ri o\u2018giriladi', () => {
     ozbekLotinga('Sardorga UZ\u0130 apparat\u0131 berdim, on iki milyon s\u00f6m'),
     "Sardorga UZI apparati berdim, on iki milyon so'm",
   );
+});
+
+/* ================================================================== */
+/* ismlar: ovozni to'g'ri eshitish uchun                               */
+/* ================================================================== */
+
+sinov('ismlar: uch manbadan yig‘iladi, takrorlarsiz', () => {
+  const d = new Daftar(path.join(papka, 'i1.json'));
+  d.qoshish({ kim: 'Sardor', turi: 'pul_qarz', summa: 1, berilgan_sana: '2026-09-01' });
+  d.qoshish({ kim: 'Akmal', turi: 'pul_qarz', summa: 1, berilgan_sana: '2026-09-02' });
+  d.qoshish({ kim: 'sardor', turi: 'pul_qarz', summa: 1, berilgan_sana: '2026-09-03' });
+  d.ismQoshish(['Jasurbek', 'Akmal']);
+
+  const ismlar = ismlarniYigish(d, { asrIsmlar: 'Nodir, Dilshod' });
+
+  assert.ok(ismlar.includes('Jasurbek'), 'qo‘lda qo‘shilgan');
+  assert.ok(ismlar.includes('Nodir') && ismlar.includes('Dilshod'), '.env dan');
+  assert.ok(ismlar.includes('Sardor') || ismlar.includes('sardor'), 'daftardan');
+
+  const past = ismlar.map((i) => i.toLowerCase());
+  assert.equal(new Set(past).size, past.length, 'takror yo‘q');
+  assert.equal(past.filter((i) => i === 'akmal').length, 1);
+});
+
+sinov('ismlar: qo‘lda qo‘shish takrorni rad etadi', () => {
+  const d = new Daftar(path.join(papka, 'i2.json'));
+  assert.deepEqual(d.ismQoshish(['Sardor', 'Akmal']), ['Sardor', 'Akmal']);
+  assert.deepEqual(d.ismQoshish(['sardor', 'SARDOR']), [], 'katta-kichik harf ahamiyatsiz');
+  assert.deepEqual(d.ismQoshish(['  ', '']), [], 'bo‘sh qabul qilinmaydi');
+  assert.equal(d.ismlar.length, 2);
+
+  assert.equal(d.ismOchirish('sardor'), true);
+  assert.equal(d.ismOchirish('yoq'), false);
+  assert.deepEqual(d.ismlar, ['Akmal']);
+
+  // diskda saqlanadi
+  assert.deepEqual(new Daftar(path.join(papka, 'i2.json')).ismlar, ['Akmal']);
+});
+
+sinov('ismlar: Whisper yo‘riqnomasi ismlarni oldinga qo‘yadi', () => {
+  const cfg = { asrYoriqnoma: 'O‘zbek tilidagi yozuv.' };
+  const yoriqnoma = whisperYoriqnomasi(['Sardor', 'Akmal'], cfg);
+
+  assert.match(yoriqnoma, /^Ismlar: Sardor, Akmal\./);
+  assert.ok(yoriqnoma.includes(cfg.asrYoriqnoma));
+  assert.equal(whisperYoriqnomasi([], cfg), cfg.asrYoriqnoma, 'ism bo‘lmasa asos qoladi');
+});
+
+sinov('ismlar: yo‘riqnoma Whisper chegarasidan oshmaydi', () => {
+  // Whisper prompt ~224 token bilan cheklangan
+  const kop = Array.from({ length: 200 }, (_, i) => `Familiyali Ism${i}`);
+  const yoriqnoma = whisperYoriqnomasi(kop, { asrYoriqnoma: 'Asos matn.' });
+  assert.ok(yoriqnoma.length <= 700, `uzunlik: ${yoriqnoma.length}`);
+  assert.ok(yoriqnoma.includes('Ism0'), 'birinchi ismlar kiradi');
+});
+
+/* ================================================================== */
+/* ovozni tozalash                                                     */
+/* ================================================================== */
+
+/** faqat matn qaytaradigan soxta miya */
+const tozalovchiMiya = (javob) => ({
+  sorovlar: [],
+  tayyorlash({ yoriqnoma, xabar }) {
+    this.sorovlar.push({ yoriqnoma, xabar });
+    return [{ role: 'user', content: xabar }];
+  },
+  async sorov() {
+    if (javob instanceof Error) throw javob;
+    return { tugash: 'end', matn: javob, chaqiruvlar: [], xom: null };
+  },
+});
+
+sinov('tozalash: turkcha matn o‘zbekchaga keladi', async () => {
+  const miya = tozalovchiMiya('Sardorga UZI apparati berdim, o‘n ikki million so‘m');
+  const natija = await ovozniTozalash({
+    matn: 'Serdara UZI aparati verdim, on iki milyon som',
+    ismlar: ['Sardor', 'Akmal'],
+    miya,
+  });
+
+  assert.equal(natija.ozgardi, true);
+  assert.match(natija.matn, /Sardorga/);
+  assert.match(miya.sorovlar[0].xabar, /Tanish ismlar: Sardor, Akmal/);
+});
+
+sinov('tozalash: shubhali javob rad etiladi, asl matn qoladi', async () => {
+  const asl = 'Sardorga besh million berdim';
+
+  const holatlar = [
+    ['', 'bo‘sh javob'],
+    ['Qisqa', 'juda qisqartirgan'],
+    [`${asl} va yana juda uzun izoh qo‘shildi bu yerda yana ko‘p so‘zlar bor edi albatta`, 'juda uzaytirgan'],
+    ['Mana tuzatilgan matn:\nSardorga besh million berdim', 'izoh qo‘shgan'],
+  ];
+
+  for (const [javob, izoh] of holatlar) {
+    const natija = await ovozniTozalash({ matn: asl, ismlar: [], miya: tozalovchiMiya(javob) });
+    assert.equal(natija.matn, asl, izoh);
+    assert.equal(natija.ozgardi, false, izoh);
+  }
+});
+
+sinov('tozalash: model ishlamasa ish to‘xtamaydi', async () => {
+  const asl = 'Sardorga besh million berdim';
+  const natija = await ovozniTozalash({
+    matn: asl, ismlar: [], miya: tozalovchiMiya(new Error('tarmoq yo‘q')),
+  });
+  assert.equal(natija.matn, asl);
+  assert.equal(natija.ozgardi, false);
+});
+
+sinov('tozalash: ortiqcha tirnoq va sarlavha olib tashlanadi', async () => {
+  const natija = await ovozniTozalash({
+    matn: 'Serdara besh milyon verdim',
+    ismlar: [],
+    miya: tozalovchiMiya('"Sardorga besh million berdim"'),
+  });
+  assert.equal(natija.matn, 'Sardorga besh million berdim');
+});
+
+sinov('tozalash: miya bo‘lmasa asl matn qaytadi', async () => {
+  const natija = await ovozniTozalash({ matn: 'salom', ismlar: [], miya: null });
+  assert.equal(natija.matn, 'salom');
 });
 
 /* ================================================================== */

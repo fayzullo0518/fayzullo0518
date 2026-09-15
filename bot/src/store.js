@@ -28,6 +28,7 @@ const BOSH_BAZA = () => ({
   versiya: 1,
   ketmaKet: 0,
   yozuvlar: [],
+  ismlar: [],
   suhbat: {},
   holat: { oxirgiKunlikEslatma: null, oxirgiOylikHisobot: null },
 });
@@ -46,6 +47,7 @@ export class Daftar {
       this.baza = { ...BOSH_BAZA(), ...oqilgan };
       // eski fayllar to'liq bo'lmasligi mumkin — yetishmagan maydonlarni tiklaymiz
       this.baza.yozuvlar = Array.isArray(this.baza.yozuvlar) ? this.baza.yozuvlar : [];
+      this.baza.ismlar = Array.isArray(this.baza.ismlar) ? this.baza.ismlar : [];
       this.baza.suhbat = this.baza.suhbat && typeof this.baza.suhbat === 'object' ? this.baza.suhbat : {};
       this.baza.holat = { ...BOSH_BAZA().holat, ...(this.baza.holat || {}) };
     } catch (xato) {
@@ -185,6 +187,37 @@ export class Daftar {
       }
       return true;
     });
+  }
+
+  /* ---------------------------------------------------------------- */
+  /* ismlar - ovozni to'g'ri eshitish uchun                            */
+  /* ---------------------------------------------------------------- */
+
+  /** Qo'lda qo'shilgan ismlar */
+  get ismlar() {
+    return this.baza.ismlar;
+  }
+
+  /** @returns {string[]} haqiqatan qo'shilganlari */
+  ismQoshish(ismlar) {
+    const bor = new Set(this.baza.ismlar.map((i) => i.toLowerCase()));
+    const yangilar = [];
+    for (const xom of ismlar) {
+      const ism = String(xom).trim().replace(/\s+/g, ' ');
+      if (!ism || ism.length > 60 || bor.has(ism.toLowerCase())) continue;
+      bor.add(ism.toLowerCase());
+      this.baza.ismlar.push(ism);
+      yangilar.push(ism);
+    }
+    if (yangilar.length) this.saqlash();
+    return yangilar;
+  }
+
+  ismOchirish(ism) {
+    const oldin = this.baza.ismlar.length;
+    this.baza.ismlar = this.baza.ismlar.filter((i) => i.toLowerCase() !== String(ism).trim().toLowerCase());
+    if (this.baza.ismlar.length !== oldin) this.saqlash();
+    return oldin !== this.baza.ismlar.length;
   }
 
   /* ---------------------------------------------------------------- */

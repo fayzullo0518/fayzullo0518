@@ -60,6 +60,7 @@ ${rang.qalin('Shunchaki yozing:')}
   Yo'q, 5 mln emas 6 mln edi
 
 ${rang.qalin('Buyruqlar:')}
+  /ismlar     ovoz uchun tanish ismlar
   /royxat     qaytarilmaganlar
   /excel      Excel fayl yaratish
   /oy         shu oy hisoboti
