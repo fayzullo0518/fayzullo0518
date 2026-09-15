@@ -257,11 +257,43 @@ Kuniga ~25 xabar bo'lganda, taxminiy oylik:
 ## Sinov va demo
 
 ```bash
-npm run demo    # butun botni soxta Telegram bilan ishlatib ko'rsatadi
-npm test        # 51 ta sinov — tarmoqqa ulanmasdan
-npm run tekshir # jonli xizmatlarni tekshiradi (token, kalit, ovoz)
-npm run check   # hamma fayl sintaksisi
+npm run tekshir   # token, kalit, ovoz xizmati — hammasi ishlayaptimi?
+npm run llm-sinov # model o'zbek tilini qanchalik tushunadi?
+npm run demo      # butun botni soxta Telegram bilan ishlatib ko'rsatadi
+npm test          # 51 ta sinov — tarmoqqa ulanmasdan
+npm run check     # hamma fayl sintaksisi
 ```
+
+### `npm run llm-sinov`
+
+`.env` dagi model bilan **haqiqiy** so'rov yuboradi va o'zbekcha gaplarni
+qanchalik to'g'ri tushunishini o'lchaydi — ismni, summani, sanani, yozuv
+turini. Telegram kerak emas, faqat model kaliti. Bir marta ishlatish
+DeepSeek'da bir tiyindan ham arzon.
+
+```
+🧪 Til modeli sinovi — deepseek / deepseek-chat
+
+  1/6  👤 "Sardorga UZI apparati berdim, 12 mln, 1-oktabrgacha to'laydi"
+       apparat + qarz, "12 mln", "1-oktabrgacha"
+       ✅ Sardor — apparat_qarz — 12 000 000 UZS — 01.10.2026
+
+  2/6  👤 "Akmalga besh million qarz berdim, o'ttiz sentabrda qaytaradi"
+       summa so'z bilan: "besh million", sana "o'ttiz sentabrda"
+       ✅ Akmal — pul_qarz — 5 000 000 UZS — 30.09.2026
+  …
+  6/6 to'g'ri (100%) — deepseek/deepseek-chat
+```
+
+Xato chiqsa qaysi maydon noto'g'ri tushunilganini aniq ko'rsatadi:
+
+```
+       ❌ summa: kutilgan 12 000 000, keldi 12 000
+```
+
+**Ikki modelni solishtirish:** `.env` da `LLM_XIZMATI=claude` qilib yana
+ishlating. Natijani taqqoslab, qaysi biri sizning gapirish uslubingizni
+yaxshiroq tushunishini ko'rasiz.
 
 ### `npm run demo`
 
@@ -325,6 +357,7 @@ bot/
 ├── test/
 │   ├── smoke.js      — 51 ta sinov
 │   ├── demo.js       — soxta Telegram bilan to'liq ishga tushirish
+│   ├── llm-sinov.js  — model o'zbek tilini qanday tushunishi
 │   └── tekshir.js    — jonli diagnostika
 └── data/daftar.json  — sizning ma'lumotlaringiz
 ```
