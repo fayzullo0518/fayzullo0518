@@ -12,6 +12,7 @@ import { VOSITALAR, vositaniBajarish } from '../src/vositalar.js';
 import { excelTuzish, oylikHisobotMatni, ochiqlarMatni, qisqaSatr } from '../src/hisobot.js';
 import { muddatiKelganlar, eslatmaMatni, tugmalar } from '../src/eslatma.js';
 import { esc } from '../src/telegram.js';
+import { faylniTayyorlash } from '../src/asr.js';
 import { Agent } from '../src/agent.js';
 import { miyaYaratish, MiyaXatosi } from '../src/miya.js';
 import { tasdiqlarniYopish } from '../src/eslatma.js';
@@ -938,6 +939,45 @@ sinov('tasdiq: kutayotgan yozuv ro‘yxatda belgi bilan ko‘rinadi', () => {
   const satr = qisqaSatr({ id: 'Y0001', kim: 'Sardor', tasdiq: 'kutilmoqda' });
   assert.match(satr, /Y0001 ⏳/);
   assert.ok(!qisqaSatr({ id: 'Y0002', kim: 'A', tasdiq: 'tasdiqlangan' }).includes('⏳'));
+});
+
+/* ================================================================== */
+/* ovoz: fayl nomini xizmatlar tushunadigan qilish                     */
+/* ================================================================== */
+
+sinov('ovoz: Telegram .oga ni .ogg ga aylantiradi', () => {
+  // Groq ruxsat ro'yxatida "oga" yo'q, "ogg" bor - tarkibi esa bir xil
+  assert.deepEqual(faylniTayyorlash('file_123.oga'), { nom: 'file_123.ogg', tur: 'audio/ogg' });
+  assert.deepEqual(faylniTayyorlash('A.OGA'), { nom: 'A.ogg', tur: 'audio/ogg' });
+});
+
+sinov('ovoz: papka yo\u2018li olib tashlanadi', () => {
+  assert.equal(faylniTayyorlash('voice/file_9.oga').nom, 'file_9.ogg');
+  assert.equal(faylniTayyorlash('a/b/c/ovoz.ogg').nom, 'ovoz.ogg');
+});
+
+sinov('ovoz: tanish turlar o\u2018zgarmaydi', () => {
+  const holatlar = [
+    ['qoshiq.mp3', 'audio/mpeg'],
+    ['yozuv.m4a', 'audio/mp4'],
+    ['x.wav', 'audio/wav'],
+    ['y.webm', 'audio/webm'],
+    ['z.flac', 'audio/flac'],
+    ['w.opus', 'audio/ogg'],
+  ];
+  for (const [nom, tur] of holatlar) {
+    const natija = faylniTayyorlash(nom);
+    assert.equal(natija.nom, nom, nom);
+    assert.equal(natija.tur, tur, nom);
+  }
+});
+
+sinov('ovoz: notanish yoki bo\u2018sh nom xavfsiz turga tushadi', () => {
+  // Telegram ovozi doim Ogg/Opus - shuni sukut qilib olamiz
+  assert.deepEqual(faylniTayyorlash('nomsiz'), { nom: 'nomsiz.ogg', tur: 'audio/ogg' });
+  assert.deepEqual(faylniTayyorlash(''), { nom: 'audio.ogg', tur: 'audio/ogg' });
+  assert.deepEqual(faylniTayyorlash(null), { nom: 'audio.ogg', tur: 'audio/ogg' });
+  assert.equal(faylniTayyorlash('nimadir.xyz').nom, 'nimadir.ogg');
 });
 
 /* ================================================================== */

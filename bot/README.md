@@ -295,7 +295,7 @@ npm run webhook-ochir # 409 xatosi: webhook ni olib tashlash
 npm run tekshir   # token, kalit, ovoz xizmati — hammasi ishlayaptimi?
 npm run llm-sinov # model o'zbek tilini qanchalik tushunadi?
 npm run demo      # butun botni soxta Telegram bilan ishlatib ko'rsatadi
-npm test          # 51 ta sinov — tarmoqqa ulanmasdan
+npm test          # 55 ta sinov — tarmoqqa ulanmasdan
 npm run check     # hamma fayl sintaksisi
 ```
 
@@ -396,7 +396,7 @@ bot/
 │   ├── ornatish.sh   — systemd xizmatini yaratadi
 │   └── zaxira.sh     — kunlik zaxira nusxa
 ├── test/
-│   ├── smoke.js      — 51 ta sinov
+│   ├── smoke.js      — 55 ta sinov
 │   ├── demo.js       — soxta Telegram bilan to'liq ishga tushirish
 │   ├── llm-sinov.js  — model o'zbek tilini qanday tushunishi
 │   └── tekshir.js    — jonli diagnostika

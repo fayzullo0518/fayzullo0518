@@ -15,6 +15,30 @@
 
 const CHEGARA_BAYT = 24 * 1024 * 1024; // xizmatlar ~25MB qabul qiladi
 
+/** kengaytma -> MIME turi */
+const TURLAR = {
+  ogg: 'audio/ogg', opus: 'audio/ogg', wav: 'audio/wav', mp3: 'audio/mpeg',
+  mpeg: 'audio/mpeg', mpga: 'audio/mpeg', m4a: 'audio/mp4', mp4: 'audio/mp4',
+  webm: 'audio/webm', flac: 'audio/flac',
+};
+
+/**
+ * Telegram ovozli xabarni ".oga" deb ataydi. Tarkibi oddiy Ogg/Opus, lekin
+ * Groq ro'yxatida "oga" yo'q - "ogg" bor. Shuning uchun nomni moslaymiz;
+ * baytlarga tegilmaydi.
+ */
+const KENGAYTMA_MOSLIGI = { oga: 'ogg', ogv: 'ogg', oga_: 'ogg' };
+
+/** Xizmatlar tanishi uchun fayl nomini va turini tayyorlaydi */
+export function faylniTayyorlash(nom) {
+  const toza = String(nom || 'audio').split(/[\\/]/).pop();
+  const nuqta = toza.lastIndexOf('.');
+  const asos = (nuqta > 0 ? toza.slice(0, nuqta) : toza) || 'audio';
+  const xom = (nuqta > 0 ? toza.slice(nuqta + 1) : '').toLowerCase();
+  const kengaytma = KENGAYTMA_MOSLIGI[xom] || (TURLAR[xom] ? xom : 'ogg');
+  return { nom: `${asos}.${kengaytma}`, tur: TURLAR[kengaytma] || 'audio/ogg' };
+}
+
 export class OvozXatosi extends Error {}
 
 const KALIT_NOMI = {
@@ -48,8 +72,9 @@ export async function ovozdanMatn(buffer, nom, cfg) {
 
 /** OpenAI va Groq bir xil "audio/transcriptions" API beradi */
 async function whisperOrqali(buffer, nom, cfg) {
+  const fayl = faylniTayyorlash(nom);
   const forma = new FormData();
-  forma.append('file', new Blob([buffer]), nom || 'audio.oga');
+  forma.append('file', new Blob([buffer], { type: fayl.tur }), fayl.nom);
   forma.append('model', cfg.asrModel);
   forma.append('language', 'uz');
   forma.append('response_format', 'json');
@@ -65,15 +90,9 @@ async function whisperOrqali(buffer, nom, cfg) {
   return (await javob.json()).text;
 }
 
-/** Deepgram formatni sarlavhadan biladi, shuning uchun to'g'ri turini beramiz */
-const TURLAR = {
-  oga: 'audio/ogg', ogg: 'audio/ogg', opus: 'audio/ogg',
-  wav: 'audio/wav', mp3: 'audio/mpeg', m4a: 'audio/mp4', webm: 'audio/webm',
-};
-
+// Deepgram formatni Content-Type sarlavhasidan biladi
 async function deepgramOrqali(buffer, nom, cfg) {
-  const kengaytma = String(nom || '').split('.').pop().toLowerCase();
-  const tur = TURLAR[kengaytma] || 'audio/ogg';
+  const { tur } = faylniTayyorlash(nom);
   const manzil = `${cfg.asrAsos}/v1/listen`
     + `?model=${encodeURIComponent(cfg.asrModel)}&language=uz&smart_format=true&punctuate=true`;
 
@@ -124,6 +143,14 @@ function ovozXatosiTuzish(xizmat, holat, tana) {
   if (holat === 429) {
     return new OvozXatosi(
       `${xizmat} so‘rovlar chegarasiga yetdi. Bir daqiqadan keyin qayta yuboring.`,
+    );
+  }
+
+  if (/must be one of the following types|unsupported.*format|invalid file format/i.test(past)) {
+    return new OvozXatosi(
+      `Ovoz xizmati (${xizmat}) fayl turini qabul qilmadi.\n`
+      + 'Telegram ovozli xabari odatda Ogg/Opus bo\u2018ladi va qo\u2018llab-quvvatlanadi \u2014 '
+      + 'demak bu odatiy bo\u2018lmagan fayl. Ovozli xabar sifatida qayta yuborib ko\u2018ring.',
     );
   }
 
