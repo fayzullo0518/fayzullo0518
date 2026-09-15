@@ -47,9 +47,35 @@ export function tugmalar(royxat) {
   };
 }
 
+/**
+ * Ovozdan yozilgan yozuvlar egasi jim qolganda o'zi tasdiqlanadi.
+ * Tugmalar olib tashlanadi, shunda qaysi yozuv hali kutayotgani ko'rinib turadi.
+ * @returns {Promise<object[]>} tasdiqlangan yozuvlar
+ */
+export async function tasdiqlarniYopish(daftar, telegram) {
+  const otganlar = daftar.muddatiOtganTasdiqlar();
+  const yopilgan = [];
+
+  for (const yozuv of otganlar) {
+    const yangi = daftar.tasdiqlash(yozuv.id);
+    if (!yangi) continue;
+    yopilgan.push(yangi);
+    if (telegram && yozuv.tasdiqChatId && yozuv.tasdiqXabarId) {
+      await telegram.editMessageReplyMarkup(yozuv.tasdiqChatId, yozuv.tasdiqXabarId);
+    }
+  }
+  return yopilgan;
+}
+
 export function eslatmaniBoshlash({ daftar, telegram, cfg, chatId }) {
   const tekshir = async () => {
     try {
+      // tasdiq muddati soatdan qat'i nazar tekshiriladi
+      const yopilgan = await tasdiqlarniYopish(daftar, telegram);
+      if (yopilgan.length) {
+        console.log(`[tasdiq] ${yopilgan.length} ta yozuv jim qolinganligi uchun tasdiqlandi`);
+      }
+
       const v = hozir(cfg.vaqtMintaqasi);
       if (v.soat < cfg.eslatmaSoati) return;
 

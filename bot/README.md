@@ -30,78 +30,98 @@ qaysilari qaytarildi, qaysilari qaytarilmadi.
 
 ---
 
-## Ishga tushirish — 5 qadam
-
-### 1. Telegram bot yarating
-
-Telegramda [@BotFather](https://t.me/BotFather) ga yozing:
+## Ovozli xabar qanday ishlaydi
 
 ```
-/newbot
+Siz  🎤  «Sardorga UZI apparati berdim, 12 mln, 1-oktabrgacha»
+              ↓
+Bot  🎤  Eshitganim:
+         «Sardorga UZI apparati berdim, 12 mln, 1-oktabrgacha»
+              ↓
+Bot      Saqladim: Sardor — UZI apparati, 12 mln, 1-oktabrgacha.
+              ↓
+Bot  📝  Shu yozuv saqlandi:
+            • Y0007 ⏳ • Sardor • UZI apparati • 12 000 000 UZS • 01.10.2026 gacha
+
+         Noto'g'ri bo'lsa shu yerga tuzatib yozing.
+         10 daqiqada javob bo'lmasa, to'g'ri deb saqlayman.
+         [ ✅ To'g'ri ]  [ 🗑 Sardor o'chirilsin ]
 ```
 
-Nom va username so'raydi. Oxirida sizga token beradi —
-`8012345678:AAH...` ko'rinishida. Shuni saqlab qo'ying.
+* **Hech narsa qilmasangiz** — 10 daqiqadan keyin yozuv o'zi tasdiqlanadi,
+  tugmalar yo'qoladi. ⏳ belgisi ham ketadi.
+* **✅ To'g'ri** bossangiz — darrov tasdiqlanadi.
+* **Tuzatib yozsangiz** («ismi Sardor emas, Sardorbek») — bot tuzatadi va
+  tuzatilgan yozuv darrov tasdiqlangan hisoblanadi.
+* **🗑** bossangiz — butunlay o'chadi, qaytadan aytasiz.
 
-### 2. Anthropic kaliti oling
+Yozma xabarlar darrov tasdiqlangan holda saqlanadi — tasdiq faqat ovoz uchun,
+chunki xato aynan eshitishda bo'ladi.
 
-[console.anthropic.com](https://console.anthropic.com) → **API Keys** →
-**Create Key**. `sk-ant-...` bilan boshlanadigan kalit chiqadi.
+Kutish muddatini `.env` dagi `TASDIQ_DAQIQA` orqali o'zgartirasiz.
 
-> Balansingizga oz miqdorda pul qo'yish kerak. Kunlik 20-30 xabar uchun
-> oyiga taxminan 1-3 dollar ketadi (pastdagi «Xarajat» bo'limiga qarang).
+---
 
-### 3. Ovozli xabar uchun kalit (ixtiyoriy, lekin sizga kerak)
+## Ishga tushirish
 
-Claude audio faylni o'qiy olmaydi, shuning uchun ovoz avval matnga
-o'giriladi. Ikkitasidan **bittasi** yetarli:
+### 1. Kalitlar
+
+`.env` faylida ikkita majburiy narsa bor — **Telegram token** (@BotFather dan)
+va **DeepSeek kaliti** ([platform.deepseek.com](https://platform.deepseek.com)).
+Ikkalasi ham to'ldirilgan bo'lsa keyingi qadamga o'ting.
+
+Yangidan sozlash kerak bo'lsa:
+
+```bash
+cd bot
+cp .env.example .env
+nano .env
+```
+
+### 2. Ovozli xabar uchun kalit
+
+DeepSeek'da ovozni matnga o'giradigan xizmat **yo'q**, shuning uchun bunga
+alohida kalit kerak. Ikkitasidan **bittasi** yetarli:
 
 * **OpenAI Whisper** — [platform.openai.com](https://platform.openai.com/api-keys) →
   `OPENAI_API_KEY`. O'zbek tilini yaxshi tushunadi, daqiqasi ~0.006 $.
 * **Deepgram** — [console.deepgram.com](https://console.deepgram.com) →
   `DEEPGRAM_API_KEY`. Tezroq, bepul boshlang'ich krediti bor.
 
-Ikkalasi ham bo'lmasa bot ishlayveradi — faqat ovoz kelganda «yozib
-yuboring» deb javob beradi.
+Kalit qo'shmasangiz bot ishlayveradi — faqat ovoz kelganda «yozib yuboring»
+deb javob beradi. **Yozma xabarlar to'liq ishlaydi.**
 
-### 4. Sozlang
-
-```bash
-cd bot
-cp .env.example .env
-nano .env          # yoki istalgan matn muharriri
-```
-
-`.env` ichini to'ldiring:
-
-```ini
-TELEGRAM_BOT_TOKEN=8012345678:AAH...
-ANTHROPIC_API_KEY=sk-ant-...
-OPENAI_API_KEY=sk-...          # ovoz uchun
-OWNER_ID=                       # hozircha bo'sh qoldiring
-```
-
-### 5. Ishga tushiring
+### 3. O'rnatish va tekshirish
 
 ```bash
 npm install
+npm run tekshir
+```
+
+`tekshir` har bir xizmatni alohida sinaydi va nima ishlayotganini aytadi:
+
+```
+✅ .env o'qildi
+✅ OWNER_ID: 123456789
+✅ Baza yoziladi: .../bot/data/daftar.json
+✅ Telegram: @sizning_botingiz
+✅ deepseek javob berdi: "ha"
+✅ Ovoz xizmati (openai) kalitni qabul qildi
+
+✅ Hammasi joyida. "npm start" bilan ishga tushiring.
+```
+
+### 4. Ishga tushirish
+
+```bash
 npm start
 ```
 
-Terminalda shunday chiqadi:
+### 5. OWNER_ID ni qo'yish (birinchi marta)
 
-```
-✅ @sizning_botingiz ishga tushdi
-   Baza:        /home/.../bot/data/daftar.json (0 yozuv)
-   Model:       claude-opus-5 (effort: medium)
-   Vaqt:        Asia/Tashkent, eslatma soat 9:00
-   Ovoz:        openai
-   Ega:         BELGILANMAGAN — botga /id yozing
-```
-
-Endi Telegramda botingizga **`/id`** deb yozing. U sizga raqamingizni
-aytadi. Shu raqamni `.env` dagi `OWNER_ID` ga qo'ying va botni qayta ishga
-tushiring (`Ctrl+C`, keyin `npm start`).
+Telegramda botingizga **`/id`** deb yozing. U sizga raqamingizni aytadi.
+Shu raqamni `.env` dagi `OWNER_ID` ga qo'ying va botni qayta ishga tushiring
+(`Ctrl+C`, keyin `npm start`).
 
 **Tayyor.** Endi istalgan narsani yozib yoki aytib yuboring.
 
@@ -194,14 +214,28 @@ qayta ishga tushadi.
 | Kalit | Sukut | Izoh |
 |---|---|---|
 | `TELEGRAM_BOT_TOKEN` | — | Majburiy |
-| `ANTHROPIC_API_KEY` | — | Majburiy |
+| `DEEPSEEK_API_KEY` | — | Majburiy (yoki `ANTHROPIC_API_KEY`) |
 | `OWNER_ID` | — | Faqat shu odam foydalana oladi |
 | `OPENAI_API_KEY` | — | Ovoz uchun (yoki `DEEPGRAM_API_KEY`) |
-| `CLAUDE_MODEL` | `claude-opus-5` | `claude-sonnet-5` — ~2.5 barobar arzon |
-| `CLAUDE_EFFORT` | `medium` | `low` — tezroq va arzonroq |
+| `LLM_XIZMATI` | avtomatik | `deepseek` yoki `claude` |
+| `LLM_MODEL` | `deepseek-chat` | Claude uchun: `claude-opus-5` |
 | `TIMEZONE` | `Asia/Tashkent` | Sanalar shu mintaqada hisoblanadi |
 | `ESLATMA_SOATI` | `9` | Kunlik eslatma soati (0-23) |
+| `TASDIQ_DAQIQA` | `10` | Ovoz yozuvi qancha kutadi |
 | `VALYUTA` | `UZS` | Valyuta aytilmaganda shu olinadi |
+
+### Claude'ga o'tish
+
+Kod ikkala xizmatni ham biladi. Almashtirish uchun `.env` da:
+
+```ini
+LLM_XIZMATI=claude
+ANTHROPIC_API_KEY=sk-ant-...
+LLM_MODEL=claude-opus-5
+```
+
+Claude qimmatroq, lekin o'zbek tilini va sana hisobini aniqroq tushunadi.
+DeepSeek ancha arzon. Ikkalasini sinab, o'zingizga qulayini tanlang.
 
 ---
 
@@ -209,45 +243,42 @@ qayta ishga tushadi.
 
 Kuniga ~25 xabar bo'lganda, taxminiy oylik:
 
-| Nima | Model | Oyiga |
+| Nima | Xizmat | Oyiga |
 |---|---|---|
-| Matnli xabarlar | `claude-opus-5` | ~2-3 $ |
-| Matnli xabarlar | `claude-sonnet-5` | ~1 $ |
+| Matnli xabarlar | DeepSeek | ~0.2-0.4 $ |
+| Matnli xabarlar | Claude Opus 5 | ~2-3 $ |
 | Ovozli xabarlar | Whisper | ~0.5 $ (kuniga 5 daqiqa ovoz) |
-
-Tizim yo'riqnomasi keshlanadi (`cache_control`), shuning uchun takroriy
-xabarlar arzonroq tushadi. Arzonlashtirish kerak bo'lsa `.env` da:
-
-```ini
-CLAUDE_MODEL=claude-sonnet-5
-CLAUDE_EFFORT=low
-```
 
 ---
 
 ## Sinov
 
 ```bash
-npm test     # 38 ta sinov — tarmoqqa ulanmasdan ishlaydi
-npm run check # hamma fayl sintaksisini tekshiradi
+npm test       # 51 ta sinov — tarmoqqa ulanmasdan ishlaydi
+npm run tekshir # jonli xizmatlarni tekshiradi
+npm run check  # hamma fayl sintaksisi
 ```
 
-Sinovlar sana hisobi, baza, vositalar, Excel yozuvchi, eslatma mantiqi va
-agent siklini (soxta Claude mijozi bilan) qamrab oladi.
+Sinovlar sana hisobi, baza, vositalar, Excel yozuvchi, eslatma mantiqi,
+tasdiqlash oqimi, DeepSeek so'rov/javob shakli va agent siklini qamrab oladi.
 
 ---
 
 ## Muammo bo'lsa
+
+Avval **`npm run tekshir`** ishlating — ko'pincha sababni o'zi aytadi.
 
 | Belgi | Sabab va yechim |
 |---|---|
 | `.env fayli to'liq emas` | `.env` da token yoki kalit yo'q |
 | `409` xatosi log'da | Bot ikki joyda ishlayapti — eskisini to'xtating |
 | Bot javob bermaydi | `OWNER_ID` noto'g'ri. `/id` yozib tekshiring |
-| `ANTHROPIC_API_KEY noto'g'ri` | Kalit eskirgan yoki balans tugagan |
+| `DEEPSEEK_API_KEY noto'g'ri` | Kalit bekor qilingan yoki xato ko'chirilgan |
+| `DeepSeek balansi tugagan` | platform.deepseek.com da hisobni to'ldiring |
+| `Host not in allowlist` | Serveringiz tarmog'i o'sha manzilni bloklayapti |
 | Ovoz «o'girib bo'lmadi» | `OPENAI_API_KEY` yo'q yoki balansi tugagan |
 | Eslatma kelmayapti | `OWNER_ID` bo'sh bo'lsa eslatma ishlamaydi |
-| Ism noto'g'ri yozilgan | Ovozda shunday bo'ladi — «ismi Sardor emas, Sardorbek» deb yozing, tuzatadi |
+| Ism noto'g'ri yozilgan | Tasdiq xabariga «ismi Sardorbek» deb javob yozing |
 
 ---
 
@@ -256,20 +287,23 @@ agent siklini (soxta Claude mijozi bilan) qamrab oladi.
 ```
 bot/
 ├── src/
-│   ├── index.js      — kirish nuqtasi, Telegram xabarlarini qabul qilish
-│   ├── agent.js      — Claude bilan vositalar sikli
+│   ├── index.js      — kirish nuqtasi, Telegram xabarlari va tugmalar
+│   ├── agent.js      — vositalar sikli (modeldan mustaqil)
+│   ├── miya.js       — DeepSeek / Claude qatlami
 │   ├── vositalar.js  — agent vositalari: yozish, qidirish, belgilash, hisobot
-│   ├── store.js      — JSON baza (atomar yozuv, zaxira)
+│   ├── store.js      — JSON baza (atomar yozuv, zaxira, tasdiq holati)
 │   ├── telegram.js   — Telegram Bot API mijozi
 │   ├── asr.js        — ovozni matnga o'girish
 │   ├── hisobot.js    — Excel va oylik xulosa
-│   ├── eslatma.js    — kunlik/oylik jadval
+│   ├── eslatma.js    — kunlik/oylik jadval + tasdiq muddati
 │   ├── xlsx.js       — kutubxonasiz .xlsx yozuvchi
 │   ├── vaqt.js       — sana hisobi (Asia/Tashkent)
 │   └── config.js     — .env o'qish va tekshirish
-├── test/smoke.js     — 38 ta sinov
+├── test/
+│   ├── smoke.js      — 51 ta sinov
+│   └── tekshir.js    — jonli diagnostika
 └── data/daftar.json  — sizning ma'lumotlaringiz
 ```
 
-Bog'liqliklar atigi ikkita: `@anthropic-ai/sdk` va `dotenv`. Qolgani —
-Node'ning o'z imkoniyatlari.
+Bog'liqliklar atigi ikkita: `@anthropic-ai/sdk` (Claude uchun) va `dotenv`.
+DeepSeek to'g'ridan-to'g'ri `fetch` orqali ishlaydi. Qolgani — Node'ning o'zi.

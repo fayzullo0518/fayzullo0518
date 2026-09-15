@@ -103,6 +103,11 @@ export class Daftar {
       manba: 'matn',
       asl_matn: null,
       eslatilgan: [],
+      // ovozdan yozilgan yozuv egasi tasdiqlagunicha (yoki muddat o'tguncha) kutadi
+      tasdiq: 'tasdiqlangan',
+      tasdiqMuddati: null,
+      tasdiqChatId: null,
+      tasdiqXabarId: null,
       yaratilgan: new Date().toISOString(),
       yangilangan: new Date().toISOString(),
       ...yozuv,
@@ -137,6 +142,28 @@ export class Daftar {
     const [ochirilgan] = this.baza.yozuvlar.splice(indeks, 1);
     this.saqlash();
     return ochirilgan;
+  }
+
+  /* ---------------------------------------------------------------- */
+  /* tasdiqlash (ovozdan yozilgan yozuvlar)                            */
+  /* ---------------------------------------------------------------- */
+
+  /** Hali tasdiqlanmagan yozuvlar */
+  kutilayotganlar() {
+    return this.baza.yozuvlar.filter((y) => y.tasdiq === 'kutilmoqda');
+  }
+
+  /** Muddati o'tgan, ya'ni jim qolinganligi uchun to'g'ri deb hisoblanadiganlar */
+  muddatiOtganTasdiqlar(hozirgi = Date.now()) {
+    return this.kutilayotganlar().filter(
+      (y) => y.tasdiqMuddati && Date.parse(y.tasdiqMuddati) <= hozirgi,
+    );
+  }
+
+  tasdiqlash(id) {
+    const yozuv = this.topish(id);
+    if (!yozuv || yozuv.tasdiq !== 'kutilmoqda') return null;
+    return this.yangilash(id, { tasdiq: 'tasdiqlangan', tasdiqMuddati: null });
   }
 
   /** filtr: { kim, turi, holat, sana_dan, sana_gacha, matn } */

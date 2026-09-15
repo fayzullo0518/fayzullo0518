@@ -1,12 +1,11 @@
 /**
- * Agent — Claude bilan vositalar (tool use) siklidan iborat.
+ * Agent — til modeli bilan vositalar siklidan iborat.
  *
- * Qo'lda yozilgan sikl ishlatilgan (SDK ning beta tool-runner'i emas), chunki
- * vositalar yon ta'sir beradi: Excel fayli va tayyor hisobot matnlari sikl
- * tugagach Telegramga alohida yuboriladi.
+ * Qaysi model ishlatilishi (DeepSeek yoki Claude) `miya.js` da hal qilinadi;
+ * bu yerdagi sikl ikkalasi uchun ham bir xil.
  */
-import Anthropic from '@anthropic-ai/sdk';
 import { VOSITALAR, vositaniBajarish } from './vositalar.js';
+import { miyaYaratish, MiyaXatosi } from './miya.js';
 import { TURLAR } from './store.js';
 import { hozir, sanaKorinishi } from './vaqt.js';
 import { qisqaSatr } from './hisobot.js';
@@ -49,12 +48,13 @@ JAVOB BERISH:
 - Faqat o'zbek tilida, qisqa: 1-3 qator. Ortiqcha muqaddima yozma.
 - Yozuv saqlangach nima yozilganini bir qatorda tasdiqla (ism, nima, summa, sana).
 - Ovozdan o'girilgan matnda ism noto'g'ri eshitilgan bo'lishi mumkin. Ism g'alati
-  tuyulsa, yozib qo'y va javobingda "ismni to'g'ri yozdimmi?" deb so'ra.
+  tuyulsa ham yozib qo'y — bot egasiga tasdiqlash uchun alohida xabar yuboradi,
+  sen bu haqda yozishing shart emas.
 - Ism umuman aytilmagan bo'lsa ("bir odamga berdim") — yozma, kimligini so'ra.
 - Excel yoki oylik hisobot vositasini chaqirgan bo'lsang, natijasi egangga alohida
   yuboriladi; javobingda uni takrorlama.`;
 
-/** Har chaqiruvda yangilanadigan kichik kontekst — tizim yo'riqnomasi keshda qoladi */
+/** Har chaqiruvda yangilanadigan kichik kontekst — tizim yo'riqnomasi o'zgarmaydi */
 function kontekstBloki(daftar, cfg) {
   const v = hozir(cfg.vaqtMintaqasi);
   const ochiq = daftar.yozuvlar.filter((y) => y.holat !== 'qaytarildi');
@@ -81,11 +81,11 @@ export class Agent {
   constructor(cfg, daftar) {
     this.cfg = cfg;
     this.daftar = daftar;
-    this.client = new Anthropic({ apiKey: cfg.anthropicKalit, maxRetries: 3 });
+    this.miya = miyaYaratish(cfg);
   }
 
   /**
-   * @returns {Promise<{javob: string, fayllar: object[], tayyorMatnlar: string[]}>}
+   * @returns {Promise<{javob, fayllar, tayyorMatnlar, yangiYozuvlar}>}
    */
   async javob({ chatId, matn, manba = 'matn' }) {
     const ktx = {
@@ -95,61 +95,41 @@ export class Agent {
       aslMatn: matn,
       fayllar: [],
       tayyorMatnlar: [],
+      yangiYozuvlar: [],
     };
 
-    const tarix = this.daftar.tarix(chatId);
-    const messages = [
-      ...tarix.map((x) => ({ role: x.role, content: x.content })),
-      { role: 'user', content: `${kontekstBloki(this.daftar, this.cfg)}\n\n${matn}` },
-    ];
+    const messages = this.miya.tayyorlash({
+      yoriqnoma: TIZIM_YORIQNOMASI,
+      tarix: this.daftar.tarix(chatId),
+      xabar: `${kontekstBloki(this.daftar, this.cfg)}\n\n${matn}`,
+    });
 
     let javobMatni = '';
 
     for (let aylanma = 0; aylanma < MAX_AYLANMA; aylanma += 1) {
-      const sorov = {
-        model: this.cfg.model,
-        max_tokens: 8000,
-        system: [{ type: 'text', text: TIZIM_YORIQNOMASI, cache_control: { type: 'ephemeral' } }],
-        tools: VOSITALAR,
-        messages,
-      };
-      if (this.cfg.effort) sorov.output_config = { effort: this.cfg.effort };
+      const natija = await this.miya.sorov({ messages, vositalar: VOSITALAR });
 
-      const natija = await this.client.messages.create(sorov);
+      if (natija.matn) javobMatni = natija.matn;
 
-      const matnlar = natija.content
-        .filter((b) => b.type === 'text')
-        .map((b) => b.text.trim())
-        .filter(Boolean);
-      if (matnlar.length) javobMatni = matnlar.join('\n\n');
-
-      if (natija.stop_reason === 'refusal') {
+      if (natija.tugash === 'refusal') {
         javobMatni = javobMatni || 'Bu so‘rovga javob bera olmadim. Boshqacha aytib ko‘ring.';
         break;
       }
-      if (natija.stop_reason === 'max_tokens') {
+      if (natija.tugash === 'max') {
         javobMatni = `${javobMatni}\n\n(Javob uzun bo‘lgani uchun kesildi.)`.trim();
         break;
       }
-      if (natija.stop_reason !== 'tool_use') break;
+      if (natija.tugash !== 'tool' || !natija.chaqiruvlar.length) break;
 
-      const chaqiruvlar = natija.content.filter((b) => b.type === 'tool_use');
-      messages.push({ role: 'assistant', content: natija.content });
+      this.miya.javobniQoshish(messages, natija.xom);
 
-      const natijalar = chaqiruvlar.map((chaqiruv) => {
-        // strict rejimida ham kirishni o'zimiz tekshiramiz
-        const kirish = chaqiruv.input && typeof chaqiruv.input === 'object' ? chaqiruv.input : {};
-        const javob = vositaniBajarish(chaqiruv.name, kirish, ktx);
-        console.log(`[vosita] ${chaqiruv.name} -> ${javob.ok ? 'ok' : `XATO: ${javob.xato}`}`);
-        return {
-          type: 'tool_result',
-          tool_use_id: chaqiruv.id,
-          content: JSON.stringify(javob),
-          ...(javob.ok ? {} : { is_error: true }),
-        };
+      const natijalar = natija.chaqiruvlar.map((chaqiruv) => {
+        const javob = vositaniBajarish(chaqiruv.nom, chaqiruv.kirish, ktx);
+        console.log(`[vosita] ${chaqiruv.nom} -> ${javob.ok ? 'ok' : `XATO: ${javob.xato}`}`);
+        return { id: chaqiruv.id, nom: chaqiruv.nom, matn: JSON.stringify(javob), xato: !javob.ok };
       });
 
-      messages.push({ role: 'user', content: natijalar });
+      this.miya.natijalarniQoshish(messages, natijalar);
     }
 
     if (!javobMatni) javobMatni = 'Tayyor.';
@@ -157,26 +137,17 @@ export class Agent {
     this.daftar.tarixgaQoshish(chatId, 'user', matn);
     this.daftar.tarixgaQoshish(chatId, 'assistant', javobMatni);
 
-    return { javob: javobMatni, fayllar: ktx.fayllar, tayyorMatnlar: ktx.tayyorMatnlar };
+    return {
+      javob: javobMatni,
+      fayllar: ktx.fayllar,
+      tayyorMatnlar: ktx.tayyorMatnlar,
+      yangiYozuvlar: ktx.yangiYozuvlar,
+    };
   }
 }
 
-/** Anthropic xatolarini odam tushunadigan o'zbekcha xabarga aylantiradi */
+/** Xatolarni odam tushunadigan o'zbekcha xabarga aylantiradi */
 export function agentXatosi(xato) {
-  if (xato instanceof Anthropic.AuthenticationError) {
-    return 'ANTHROPIC_API_KEY noto‘g‘ri yoki eskirgan. .env faylni tekshiring.';
-  }
-  if (xato instanceof Anthropic.RateLimitError) {
-    return 'Hozir so‘rovlar chegarasiga yetdik. Bir daqiqadan keyin qayta yuboring.';
-  }
-  if (xato instanceof Anthropic.BadRequestError) {
-    return `So‘rov noto‘g‘ri tuzildi: ${xato.message}`;
-  }
-  if (xato instanceof Anthropic.APIConnectionError) {
-    return 'Internet yoki Anthropic xizmatiga ulanib bo‘lmadi. Qayta urinib ko‘ring.';
-  }
-  if (xato instanceof Anthropic.APIError) {
-    return `Anthropic xatosi (${xato.status}): ${xato.message}`;
-  }
+  if (xato instanceof MiyaXatosi) return xato.message;
   return `Xatolik: ${xato.message}`;
 }

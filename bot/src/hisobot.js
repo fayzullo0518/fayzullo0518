@@ -130,7 +130,8 @@ export function oylikHisobotMatni(yozuvlar, oyKodi, vaqtMintaqasi) {
 
 /** "Y0007 • Sardor • UZI apparati • 12 000 000 UZS • 01.10.2026 gacha" */
 export function qisqaSatr(y) {
-  const qismlar = [y.id, y.kim || '?'];
+  // hali tasdiqlanmagan (ovozdan yozilgan) yozuv ajralib tursin
+  const qismlar = [y.tasdiq === 'kutilmoqda' ? `${y.id} ⏳` : y.id, y.kim || '?'];
   if (y.nima) qismlar.push(y.nima);
   if (typeof y.summa === 'number') qismlar.push(`${summaKorinishi(y.summa)} ${y.valyuta || 'UZS'}`);
   if (y.qaytarish_sanasi) qismlar.push(`${sanaKorinishi(y.qaytarish_sanasi)} gacha`);

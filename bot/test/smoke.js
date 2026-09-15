@@ -13,6 +13,9 @@ import { excelTuzish, oylikHisobotMatni, ochiqlarMatni, qisqaSatr } from '../src
 import { muddatiKelganlar, eslatmaMatni, tugmalar } from '../src/eslatma.js';
 import { esc } from '../src/telegram.js';
 import { Agent } from '../src/agent.js';
+import { miyaYaratish, MiyaXatosi } from '../src/miya.js';
+import { tasdiqlarniYopish } from '../src/eslatma.js';
+import { tugmaniIshlash } from '../src/index.js';
 import {
   hozir, bugun, tugriIso, kunFarqi, kunQoshish, oyOraligi, oldingiOy,
   sanaKorinishi, oyNomi, summaKorinishi,
@@ -489,149 +492,269 @@ sinov('telegram: esc HTML ni zararsizlantiradi', () => {
 
 
 /* ================================================================== */
-/* agent sikli (soxta Anthropic mijozi bilan)                          */
+/* miya: DeepSeek (soxta fetch bilan)                                  */
 /* ================================================================== */
 
-/** Oldindan tayyorlangan javoblarni navbat bilan qaytaradigan soxta mijoz */
-function soxtaMijoz(javoblar) {
+const DS_CFG = {
+  ...CFG,
+  xizmat: 'deepseek',
+  model: 'deepseek-chat',
+  deepseekKalit: 'sk-sinov',
+  deepseekAsos: 'https://api.deepseek.com',
+  tasdiqDaqiqa: 10,
+};
+
+/** globalThis.fetch ni vaqtincha almashtiradi */
+async function fetchOrnida(javobBeruvchi, ish) {
+  const asl = globalThis.fetch;
+  const chaqiruvlar = [];
+  globalThis.fetch = async (url, sozlama) => {
+    chaqiruvlar.push({ url: String(url), sozlama, tana: JSON.parse(sozlama.body) });
+    return javobBeruvchi(chaqiruvlar.length);
+  };
+  try {
+    return { natija: await ish(chaqiruvlar), chaqiruvlar };
+  } finally {
+    globalThis.fetch = asl;
+  }
+}
+
+const dsJavob = (tana, holat = 200) => new Response(JSON.stringify(tana), {
+  status: holat,
+  headers: { 'content-type': 'application/json' },
+});
+
+const dsXabar = (content, toolCalls = null) => ({
+  choices: [{
+    message: { role: 'assistant', content, ...(toolCalls ? { tool_calls: toolCalls } : {}) },
+    finish_reason: toolCalls ? 'tool_calls' : 'stop',
+  }],
+});
+
+sinov('deepseek: so‘rov OpenAI shaklida yuboriladi', async () => {
+  const miya = miyaYaratish(DS_CFG);
+  assert.equal(miya.nomi, 'deepseek');
+
+  const { chaqiruvlar } = await fetchOrnida(
+    () => dsJavob(dsXabar('Tayyor.')),
+    async () => {
+      const messages = miya.tayyorlash({ yoriqnoma: 'YO‘RIQNOMA', tarix: [], xabar: 'salom' });
+      return miya.sorov({ messages, vositalar: VOSITALAR });
+    },
+  );
+
+  const s = chaqiruvlar[0];
+  assert.equal(s.url, 'https://api.deepseek.com/chat/completions');
+  assert.equal(s.sozlama.headers.authorization, 'Bearer sk-sinov');
+  assert.equal(s.tana.model, 'deepseek-chat');
+  assert.equal(s.tana.tool_choice, 'auto');
+  assert.equal(s.tana.temperature, 0);
+  assert.equal(s.tana.messages[0].role, 'system');
+  assert.equal(s.tana.messages[0].content, 'YO‘RIQNOMA');
+  assert.equal(s.tana.messages.at(-1).content, 'salom');
+
+  // vositalar OpenAI "function" shaklida
+  assert.equal(s.tana.tools.length, VOSITALAR.length);
+  for (const v of s.tana.tools) {
+    assert.equal(v.type, 'function');
+    assert.ok(v.function.name && v.function.description);
+    assert.equal(v.function.parameters.type, 'object');
+    assert.equal(v.function.parameters.additionalProperties, false);
+  }
+  assert.ok(s.tana.tools.some((v) => v.function.name === 'yozuv_qoshish'));
+});
+
+sinov('deepseek: tool_calls normallashtiriladi', async () => {
+  const miya = miyaYaratish(DS_CFG);
+  const { natija } = await fetchOrnida(
+    () => dsJavob(dsXabar(null, [{
+      id: 'call_1',
+      type: 'function',
+      function: { name: 'yozuv_qoshish', arguments: '{"kim":"Sardor","summa":5000000}' },
+    }])),
+    async () => miya.sorov({ messages: [], vositalar: VOSITALAR }),
+  );
+
+  assert.equal(natija.tugash, 'tool');
+  assert.equal(natija.matn, '');
+  assert.equal(natija.chaqiruvlar.length, 1);
+  assert.equal(natija.chaqiruvlar[0].id, 'call_1');
+  assert.equal(natija.chaqiruvlar[0].nom, 'yozuv_qoshish');
+  assert.deepEqual(natija.chaqiruvlar[0].kirish, { kim: 'Sardor', summa: 5000000 });
+});
+
+sinov('deepseek: buzuq JSON argument vositani yiqitmaydi', async () => {
+  const miya = miyaYaratish(DS_CFG);
+  const { natija } = await fetchOrnida(
+    () => dsJavob(dsXabar(null, [{
+      id: 'call_1', type: 'function',
+      function: { name: 'yozuv_qoshish', arguments: '{"kim":"Sardor",,,' },
+    }])),
+    async () => miya.sorov({ messages: [], vositalar: VOSITALAR }),
+  );
+
+  assert.ok('__buzuqJson' in natija.chaqiruvlar[0].kirish);
+  const d = new Daftar(path.join(papka, 'ds-buzuq.json'));
+  const javob = vositaniBajarish('yozuv_qoshish', natija.chaqiruvlar[0].kirish, ktx(d));
+  assert.equal(javob.ok, false);
+  assert.match(javob.xato, /JSON/);
+  assert.equal(d.yozuvlar.length, 0);
+});
+
+sinov('deepseek: xato kodlari tushunarli xabarga aylanadi', async () => {
+  const miya = miyaYaratish(DS_CFG);
+  const holatlar = [
+    [401, /kalit|noto/i],
+    [402, /balans/i],
+    [429, /chegara/i],
+    [500, /nosozlik/i],
+  ];
+  for (const [kod, naqsh] of holatlar) {
+    await assert.rejects(
+      () => fetchOrnida(
+        () => new Response('{"error":"x"}', { status: kod }),
+        async () => miya.sorov({ messages: [], vositalar: VOSITALAR }),
+      ),
+      (e) => {
+        assert.ok(e instanceof MiyaXatosi, `${kod}: MiyaXatosi emas`);
+        assert.match(e.message, naqsh);
+        return true;
+      },
+      `HTTP ${kod}`,
+    );
+  }
+});
+
+sinov('deepseek: JSON bo‘lmagan javob aniq xato beradi', async () => {
+  const miya = miyaYaratish(DS_CFG);
+  await assert.rejects(
+    () => fetchOrnida(
+      () => new Response('<html>proksi bloklandi</html>', { status: 200 }),
+      async () => miya.sorov({ messages: [], vositalar: VOSITALAR }),
+    ),
+    (e) => {
+      assert.match(e.message, /JSON emas/);
+      return true;
+    },
+  );
+});
+
+sinov('deepseek: suhbat tarixi to‘g‘ri to‘planadi', () => {
+  const miya = miyaYaratish(DS_CFG);
+  const messages = miya.tayyorlash({ yoriqnoma: 'Y', tarix: [], xabar: 'salom' });
+
+  miya.javobniQoshish(messages, {
+    role: 'assistant', content: null,
+    tool_calls: [{ id: 'c1', type: 'function', function: { name: 'f', arguments: '{}' } }],
+  });
+  miya.natijalarniQoshish(messages, [{ id: 'c1', nom: 'f', matn: '{"ok":true}', xato: false }]);
+
+  assert.equal(messages.at(-2).role, 'assistant');
+  assert.equal(messages.at(-2).content, '', 'null content bo‘sh satrga aylanadi');
+  assert.equal(messages.at(-1).role, 'tool');
+  assert.equal(messages.at(-1).tool_call_id, 'c1');
+  assert.equal(messages.at(-1).content, '{"ok":true}');
+});
+
+/* ================================================================== */
+/* agent sikli                                                         */
+/* ================================================================== */
+
+/** Oldindan tayyorlangan javoblarni navbat bilan qaytaradigan soxta miya */
+function soxtaMiya(javoblar) {
   const sorovlar = [];
   return {
+    nomi: 'soxta',
     sorovlar,
-    messages: {
-      create: async (params) => {
-        sorovlar.push(params);
-        const javob = javoblar.shift();
-        if (!javob) throw new Error('Soxta mijozda javob qolmadi — sikl to‘xtamagan');
-        return javob;
-      },
+    tayyorlash({ yoriqnoma, tarix, xabar }) {
+      this.yoriqnoma = yoriqnoma;
+      return [...tarix.map((x) => ({ ...x })), { role: 'user', content: xabar }];
     },
+    async sorov({ messages, vositalar }) {
+      sorovlar.push({ messages: [...messages], vositalar });
+      const javob = javoblar.shift();
+      if (!javob) throw new Error('Soxta miyada javob qolmadi — sikl to‘xtamagan');
+      return javob;
+    },
+    javobniQoshish(messages, xom) { messages.push({ role: 'assistant', content: xom }); },
+    natijalarniQoshish(messages, natijalar) { messages.push({ role: 'tool', content: natijalar }); },
   };
 }
 
-const AGENT_CFG = {
-  ...CFG,
-  anthropicKalit: 'sinov',
-  model: 'claude-opus-5',
-  effort: 'medium',
-};
+const chaqiruv = (nom, kirish, id = 'c1') => ({
+  tugash: 'tool', matn: '', chaqiruvlar: [{ id, nom, kirish }], xom: { nom, kirish },
+});
+const tugadi = (matn) => ({ tugash: 'end', matn, chaqiruvlar: [], xom: null });
 
-function sinovAgenti(nom, javoblar) {
+function sinovAgenti(nom, javoblar, qoshimchaCfg = {}) {
   const daftar = new Daftar(path.join(papka, nom));
-  const agent = new Agent(AGENT_CFG, daftar);
-  const mijoz = soxtaMijoz(javoblar);
-  agent.client = mijoz;
-  return { daftar, agent, mijoz };
+  const agent = new Agent({ ...DS_CFG, ...qoshimchaCfg }, daftar);
+  const miya = soxtaMiya(javoblar);
+  agent.miya = miya;
+  return { daftar, agent, miya };
 }
 
-sinov('agent: tool_use → tool_result → javob sikli to‘liq ishlaydi', async () => {
-  const { daftar, agent, mijoz } = sinovAgenti('a1.json', [
-    {
-      stop_reason: 'tool_use',
-      content: [
-        { type: 'text', text: 'Yozib qo‘yaman.' },
-        {
-          type: 'tool_use',
-          id: 'tu_1',
-          name: 'yozuv_qoshish',
-          input: {
-            turi: 'apparat_qarz', kim: 'Sardor', nima: 'UZI apparati',
-            summa: 12000000, valyuta: 'UZS', berilgan_sana: '2026-09-15',
-            qaytarish_sanasi: '2026-10-01', izoh: null,
-          },
-        },
-      ],
-    },
-    {
-      stop_reason: 'end_turn',
-      content: [{ type: 'text', text: 'Saqladim: Sardor — UZI apparati, 12 mln, 1-oktabrgacha.' }],
-    },
+const YOZUV_KIRISHI = {
+  turi: 'apparat_qarz', kim: 'Sardor', nima: 'UZI apparati',
+  summa: 12000000, valyuta: 'UZS', berilgan_sana: '2026-09-15',
+  qaytarish_sanasi: '2026-10-01', izoh: null,
+};
+
+sinov('agent: vosita chaqiruvi → natija → javob sikli ishlaydi', async () => {
+  const { daftar, agent, miya } = sinovAgenti('a1.json', [
+    chaqiruv('yozuv_qoshish', YOZUV_KIRISHI),
+    tugadi('Saqladim: Sardor — UZI apparati, 12 mln, 1-oktabrgacha.'),
   ]);
 
   const natija = await agent.javob({ chatId: 42, matn: 'Sardorga UZI berdim, 12 mln, 1-oktabrgacha' });
 
-  assert.equal(daftar.yozuvlar.length, 1, 'yozuv haqiqatan saqlandi');
+  assert.equal(daftar.yozuvlar.length, 1);
   assert.equal(daftar.yozuvlar[0].kim, 'Sardor');
   assert.equal(daftar.yozuvlar[0].qaytarish_sanasi, '2026-10-01');
   assert.match(natija.javob, /Saqladim/);
-  assert.equal(natija.fayllar.length, 0);
-  assert.equal(mijoz.sorovlar.length, 2, 'ikki marta chaqirildi');
+  assert.equal(miya.sorovlar.length, 2);
 
-  // ikkinchi so'rovda assistant turn va tool_result to'g'ri joylashgan
-  const ikkinchi = mijoz.sorovlar[1].messages;
+  const ikkinchi = miya.sorovlar[1].messages;
   assert.equal(ikkinchi.at(-2).role, 'assistant');
-  assert.equal(ikkinchi.at(-1).role, 'user');
-  assert.equal(ikkinchi.at(-1).content[0].type, 'tool_result');
-  assert.equal(ikkinchi.at(-1).content[0].tool_use_id, 'tu_1');
-  assert.equal(JSON.parse(ikkinchi.at(-1).content[0].content).ok, true);
+  assert.equal(ikkinchi.at(-1).role, 'tool');
+  assert.equal(JSON.parse(ikkinchi.at(-1).content[0].matn).ok, true);
 
-  // suhbat tarixi saqlandi — keyingi xabarda kontekst bo'ladi
   const tarix = daftar.tarix(42);
   assert.equal(tarix.length, 2);
   assert.equal(tarix[0].role, 'user');
-  assert.equal(tarix[1].role, 'assistant');
 });
 
-sinov('agent: so‘rov shakli Claude API talablariga mos', async () => {
-  const { agent, mijoz } = sinovAgenti('a2.json', [
-    { stop_reason: 'end_turn', content: [{ type: 'text', text: 'Tushundim.' }] },
-  ]);
+sinov('agent: kontekst bloki oxirgi xabarga qo‘shiladi', async () => {
+  const { agent, miya } = sinovAgenti('a2.json', [tugadi('Tushundim.')]);
   await agent.javob({ chatId: 1, matn: 'salom' });
 
-  const s = mijoz.sorovlar[0];
-  assert.equal(s.model, 'claude-opus-5');
-  assert.ok(s.max_tokens > 0 && s.max_tokens <= 64000);
-  assert.deepEqual(s.output_config, { effort: 'medium' });
-  assert.equal(s.system[0].type, 'text');
-  assert.deepEqual(s.system[0].cache_control, { type: 'ephemeral' }, 'tizim yo‘riqnomasi keshlanadi');
-  assert.equal(s.tools.length, VOSITALAR.length);
-  assert.equal(s.messages[0].role, 'user', 'birinchi xabar doim user');
-  assert.ok(!('thinking' in s), 'thinking yuborilmaydi — model o‘zi hal qiladi');
-
-  // kontekst bloki oxirgi user xabariga qo'shiladi, tarixga esa qo'shilmaydi
+  const s = miya.sorovlar[0];
+  assert.equal(s.vositalar.length, VOSITALAR.length);
+  assert.equal(s.messages[0].role, 'user');
   assert.match(s.messages.at(-1).content, /<kontekst>/);
   assert.match(s.messages.at(-1).content, /Bugun: \d{4}-\d{2}-\d{2}/);
   assert.match(s.messages.at(-1).content, /salom$/);
+  assert.match(miya.yoriqnoma, /shaxsiy hisob-kitob daftarini/);
 });
 
-sinov('agent: effort yo‘q bo‘lsa output_config yuborilmaydi', async () => {
-  const daftar = new Daftar(path.join(papka, 'a3.json'));
-  const agent = new Agent({ ...AGENT_CFG, effort: null }, daftar);
-  const mijoz = soxtaMijoz([{ stop_reason: 'end_turn', content: [{ type: 'text', text: 'ok' }] }]);
-  agent.client = mijoz;
-  await agent.javob({ chatId: 1, matn: 'salom' });
-  assert.ok(!('output_config' in mijoz.sorovlar[0]));
-});
-
-sinov('agent: vosita xatosi is_error bilan qaytadi, sikl davom etadi', async () => {
-  const { daftar, agent, mijoz } = sinovAgenti('a4.json', [
-    {
-      stop_reason: 'tool_use',
-      content: [{
-        type: 'tool_use', id: 'tu_1', name: 'qaytarildi_belgilash',
-        input: { id: 'Y9999', sana: null, summa: null, izoh: null },
-      }],
-    },
-    {
-      stop_reason: 'end_turn',
-      content: [{ type: 'text', text: 'Bunday yozuv topilmadi, kimni nazarda tutdingiz?' }],
-    },
+sinov('agent: vosita xatosi belgilanadi, sikl davom etadi', async () => {
+  const { daftar, agent, miya } = sinovAgenti('a4.json', [
+    chaqiruv('qaytarildi_belgilash', { id: 'Y9999', sana: null, summa: null, izoh: null }),
+    tugadi('Bunday yozuv topilmadi, kimni nazarda tutdingiz?'),
   ]);
 
   const natija = await agent.javob({ chatId: 5, matn: 'Falonchi qaytardi' });
-  const natijaBloki = mijoz.sorovlar[1].messages.at(-1).content[0];
-  assert.equal(natijaBloki.is_error, true, 'xato natija is_error bilan belgilanadi');
-  assert.equal(JSON.parse(natijaBloki.content).ok, false);
+  const natijaBloki = miya.sorovlar[1].messages.at(-1).content[0];
+  assert.equal(natijaBloki.xato, true);
+  assert.equal(JSON.parse(natijaBloki.matn).ok, false);
   assert.match(natija.javob, /topilmadi/);
   assert.equal(daftar.yozuvlar.length, 0);
 });
 
 sinov('agent: Excel vositasi natijasi fayl bo‘lib qaytadi', async () => {
   const { daftar, agent } = sinovAgenti('a5.json', [
-    {
-      stop_reason: 'tool_use',
-      content: [{ type: 'tool_use', id: 'tu_1', name: 'excel_hisobot', input: { oy: null, holat: 'hammasi' } }],
-    },
-    { stop_reason: 'end_turn', content: [{ type: 'text', text: 'Mana hisobot.' }] },
+    chaqiruv('excel_hisobot', { oy: null, holat: 'hammasi' }),
+    tugadi('Mana hisobot.'),
   ]);
   daftar.qoshish({ kim: 'Sardor', turi: 'pul_qarz', summa: 1000, berilgan_sana: '2026-09-01' });
 
@@ -641,29 +764,180 @@ sinov('agent: Excel vositasi natijasi fayl bo‘lib qaytadi', async () => {
 });
 
 sinov('agent: cheksiz siklga tushmaydi', async () => {
-  const cheksiz = Array.from({ length: 20 }, () => ({
-    stop_reason: 'tool_use',
-    content: [{
-      type: 'tool_use', id: 'tu', name: 'yozuvlarni_qidirish',
-      input: { kim: null, matn: null, turi: 'hammasi', holat: 'hammasi', sana_dan: null, sana_gacha: null },
-    }],
+  const cheksiz = Array.from({ length: 20 }, () => chaqiruv('yozuvlarni_qidirish', {
+    kim: null, matn: null, turi: 'hammasi', holat: 'hammasi', sana_dan: null, sana_gacha: null,
   }));
-  const { agent, mijoz } = sinovAgenti('a6.json', cheksiz);
+  const { agent, miya } = sinovAgenti('a6.json', cheksiz);
   const natija = await agent.javob({ chatId: 3, matn: 'qidir' });
-  assert.ok(mijoz.sorovlar.length <= 8, `chaqiruvlar soni: ${mijoz.sorovlar.length}`);
-  assert.ok(natija.javob.length > 0, 'javob baribir qaytadi');
+  assert.ok(miya.sorovlar.length <= 8, `chaqiruvlar soni: ${miya.sorovlar.length}`);
+  assert.ok(natija.javob.length > 0);
 });
 
-sinov('agent: refusal va max_tokens holatlari yumshoq tugaydi', async () => {
-  const rad = sinovAgenti('a7.json', [{ stop_reason: 'refusal', content: [] }]);
-  const radJavob = await rad.agent.javob({ chatId: 1, matn: 'test' });
-  assert.ok(radJavob.javob.length > 0);
+sinov('agent: refusal va max holatlari yumshoq tugaydi', async () => {
+  const rad = sinovAgenti('a7.json', [{ tugash: 'refusal', matn: '', chaqiruvlar: [], xom: null }]);
+  assert.ok((await rad.agent.javob({ chatId: 1, matn: 'test' })).javob.length > 0);
 
-  const kesilgan = sinovAgenti('a8.json', [
-    { stop_reason: 'max_tokens', content: [{ type: 'text', text: 'Yarim javob' }] },
+  const kesilgan = sinovAgenti('a8.json', [{ tugash: 'max', matn: 'Yarim javob', chaqiruvlar: [], xom: null }]);
+  assert.match((await kesilgan.agent.javob({ chatId: 1, matn: 'test' })).javob, /kesildi/);
+});
+
+/* ================================================================== */
+/* ovozdan yozilgan yozuvni tasdiqlash                                 */
+/* ================================================================== */
+
+sinov('tasdiq: ovozdan kelgan yozuv kutish holatida saqlanadi', async () => {
+  const { daftar, agent } = sinovAgenti('t1.json', [
+    chaqiruv('yozuv_qoshish', YOZUV_KIRISHI),
+    tugadi('Saqladim.'),
   ]);
-  const kesilganJavob = await kesilgan.agent.javob({ chatId: 1, matn: 'test' });
-  assert.match(kesilganJavob.javob, /kesildi/);
+
+  const oldin = Date.now();
+  const natija = await agent.javob({ chatId: 1, matn: 'Sardorga UZI berdim', manba: 'ovoz' });
+
+  assert.equal(natija.yangiYozuvlar.length, 1, 'yangi yozuv qaytariladi');
+  const y = daftar.yozuvlar[0];
+  assert.equal(y.tasdiq, 'kutilmoqda');
+  assert.equal(y.manba, 'ovoz');
+  const muddat = Date.parse(y.tasdiqMuddati);
+  assert.ok(muddat >= oldin + 9 * 60000 && muddat <= Date.now() + 11 * 60000, 'muddat ~10 daqiqa');
+});
+
+sinov('tasdiq: yozma xabar darrov tasdiqlangan hisoblanadi', async () => {
+  const { daftar, agent } = sinovAgenti('t2.json', [
+    chaqiruv('yozuv_qoshish', YOZUV_KIRISHI),
+    tugadi('Saqladim.'),
+  ]);
+  await agent.javob({ chatId: 1, matn: 'Sardorga UZI berdim' });
+
+  assert.equal(daftar.yozuvlar[0].tasdiq, 'tasdiqlangan');
+  assert.equal(daftar.yozuvlar[0].tasdiqMuddati, null);
+  assert.equal(daftar.kutilayotganlar().length, 0);
+});
+
+sinov('tasdiq: muddat o‘tgach jim qolingani uchun tasdiqlanadi', async () => {
+  const daftar = new Daftar(path.join(papka, 't3.json'));
+  const hali = daftar.qoshish({
+    kim: 'Sardor', turi: 'pul_qarz', summa: 1000, berilgan_sana: '2026-09-01',
+    tasdiq: 'kutilmoqda', tasdiqMuddati: new Date(Date.now() + 5 * 60000).toISOString(),
+    tasdiqChatId: 77, tasdiqXabarId: 555,
+  });
+  const otgan = daftar.qoshish({
+    kim: 'Jasur', turi: 'pul_qarz', summa: 2000, berilgan_sana: '2026-09-02',
+    tasdiq: 'kutilmoqda', tasdiqMuddati: new Date(Date.now() - 60000).toISOString(),
+    tasdiqChatId: 77, tasdiqXabarId: 556,
+  });
+
+  assert.equal(daftar.kutilayotganlar().length, 2);
+  assert.deepEqual(daftar.muddatiOtganTasdiqlar().map((y) => y.id), [otgan.id]);
+
+  const tahrirlar = [];
+  const soxtaTelegram = {
+    editMessageReplyMarkup: async (chat, xabar) => { tahrirlar.push([chat, xabar]); },
+  };
+
+  const yopilgan = await tasdiqlarniYopish(daftar, soxtaTelegram);
+  assert.equal(yopilgan.length, 1);
+  assert.equal(daftar.topish(otgan.id).tasdiq, 'tasdiqlangan');
+  assert.equal(daftar.topish(otgan.id).tasdiqMuddati, null);
+  assert.equal(daftar.topish(hali.id).tasdiq, 'kutilmoqda', 'muddati kelmagani tegilmaydi');
+  assert.deepEqual(tahrirlar, [[77, 556]], 'faqat o‘sha xabarning tugmalari olindi');
+
+  // qayta chaqirish zarar qilmaydi
+  assert.equal((await tasdiqlarniYopish(daftar, soxtaTelegram)).length, 0);
+});
+
+sinov('tasdiq: egasi tuzatsa yozuv darrov tasdiqlanadi', async () => {
+  const daftar = new Daftar(path.join(papka, 't4.json'));
+  const y = daftar.qoshish({
+    kim: 'Sardor', turi: 'pul_qarz', summa: 5000000, berilgan_sana: '2026-09-01',
+    tasdiq: 'kutilmoqda', tasdiqMuddati: new Date(Date.now() + 9 * 60000).toISOString(),
+  });
+
+  const javob = vositaniBajarish('yozuvni_yangilash', {
+    id: y.id, kim: 'Sardorbek', nima: null, summa: null,
+    valyuta: null, berilgan_sana: null, qaytarish_sanasi: null, izoh: null,
+  }, ktx(daftar));
+
+  assert.equal(javob.ok, true);
+  assert.equal(daftar.topish(y.id).kim, 'Sardorbek');
+  assert.equal(daftar.topish(y.id).tasdiq, 'tasdiqlangan');
+  assert.equal(daftar.kutilayotganlar().length, 0);
+});
+
+sinov('tasdiq: "To‘g‘ri" tugmasi hammasini tasdiqlaydi', async () => {
+  const daftar = new Daftar(path.join(papka, 't5.json'));
+  for (const kim of ['A', 'B']) {
+    daftar.qoshish({
+      kim, turi: 'pul_qarz', summa: 100, berilgan_sana: '2026-09-01',
+      tasdiq: 'kutilmoqda', tasdiqMuddati: new Date(Date.now() + 9 * 60000).toISOString(),
+    });
+  }
+
+  const javoblar = [];
+  const soxtaTelegram = {
+    answerCallbackQuery: async (id, matn) => javoblar.push(matn),
+    editMessageReplyMarkup: async () => {},
+    sendMessage: async () => ({ message_id: 1 }),
+  };
+  const cfg = { ...DS_CFG, egaId: 7 };
+
+  await tugmaniIshlash(
+    { id: 'cb1', from: { id: 7 }, data: 't:*', message: { chat: { id: 7 }, message_id: 10 } },
+    { telegram: soxtaTelegram, daftar, cfg },
+  );
+
+  assert.equal(daftar.kutilayotganlar().length, 0);
+  assert.match(javoblar[0], /2 ta/);
+});
+
+sinov('tasdiq: "O‘chirish" tugmasi yozuvni olib tashlaydi', async () => {
+  const daftar = new Daftar(path.join(papka, 't6.json'));
+  const y = daftar.qoshish({
+    kim: 'Xato eshitilgan', turi: 'pul_qarz', summa: 100, berilgan_sana: '2026-09-01',
+    tasdiq: 'kutilmoqda', tasdiqMuddati: new Date(Date.now() + 9 * 60000).toISOString(),
+  });
+
+  const yuborilgan = [];
+  const soxtaTelegram = {
+    answerCallbackQuery: async () => {},
+    editMessageReplyMarkup: async () => {},
+    sendMessage: async (chat, matn) => { yuborilgan.push(matn); return { message_id: 1 }; },
+  };
+
+  await tugmaniIshlash(
+    { id: 'cb', from: { id: 7 }, data: `o:${y.id}`, message: { chat: { id: 7 }, message_id: 10 } },
+    { telegram: soxtaTelegram, daftar, cfg: { ...DS_CFG, egaId: 7 } },
+  );
+
+  assert.equal(daftar.yozuvlar.length, 0);
+  assert.match(yuborilgan[0], /chirildi/);
+});
+
+sinov('tasdiq: begona odam tugmani bosa olmaydi', async () => {
+  const daftar = new Daftar(path.join(papka, 't7.json'));
+  const y = daftar.qoshish({
+    kim: 'A', turi: 'pul_qarz', summa: 100, berilgan_sana: '2026-09-01',
+    tasdiq: 'kutilmoqda', tasdiqMuddati: new Date(Date.now() + 9 * 60000).toISOString(),
+  });
+
+  const javoblar = [];
+  await tugmaniIshlash(
+    { id: 'cb', from: { id: 999 }, data: `o:${y.id}`, message: { chat: { id: 999 }, message_id: 1 } },
+    {
+      telegram: { answerCallbackQuery: async (id, m) => javoblar.push(m) },
+      daftar,
+      cfg: { ...DS_CFG, egaId: 7 },
+    },
+  );
+
+  assert.equal(daftar.yozuvlar.length, 1, 'yozuv o‘chmadi');
+  assert.match(javoblar[0], /Ruxsat/);
+});
+
+sinov('tasdiq: kutayotgan yozuv ro‘yxatda belgi bilan ko‘rinadi', () => {
+  const satr = qisqaSatr({ id: 'Y0001', kim: 'Sardor', tasdiq: 'kutilmoqda' });
+  assert.match(satr, /Y0001 ⏳/);
+  assert.ok(!qisqaSatr({ id: 'Y0002', kim: 'A', tasdiq: 'tasdiqlangan' }).includes('⏳'));
 });
 
 /* ================================================================== */

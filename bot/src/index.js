@@ -7,10 +7,12 @@ import { Daftar } from './store.js';
 import { Telegram, esc } from './telegram.js';
 import { Agent, agentXatosi } from './agent.js';
 import { ovozdanMatn, OvozXatosi } from './asr.js';
-import { eslatmaniBoshlash } from './eslatma.js';
-import { excelTuzish, oylikHisobotMatni, ochiqlarMatni } from './hisobot.js';
+import { eslatmaniBoshlash, tugmalar } from './eslatma.js';
+import { excelTuzish, oylikHisobotMatni, ochiqlarMatni, qisqaSatr } from './hisobot.js';
 import { vositaniBajarish } from './vositalar.js';
 import { hozir, oldingiOy } from './vaqt.js';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const BUYRUQLAR = [
   { command: 'royxat', description: 'Qaytarilmaganlar ro‘yxati' },
@@ -22,7 +24,7 @@ const BUYRUQLAR = [
   { command: 'yordam', description: 'Qanday ishlashi haqida' },
 ];
 
-const YORDAM = `\u{1F4D2} <b>Daftar bot</b>
+const yordamMatni = (cfg) => `\u{1F4D2} <b>Daftar bot</b>
 
 Menga oddiy qilib yozing yoki ovozli xabar yuboring — o‘zim tushunib yozib qo‘yaman.
 
@@ -33,15 +35,19 @@ Menga oddiy qilib yozing yoki ovozli xabar yuboring — o‘zim tushunib yozib q
 • "Sardor qaytardi" — yozuvni yopaman
 • "Akmal 2 mln berdi" — qisman to‘lov qilib belgilayman
 
+<b>Ovozli xabar:</b>
+Eshitganimni yozma holatda qaytarib yuboraman. Noto‘g‘ri bo‘lsa tuzatib
+yozasiz. ${cfg.tasdiqDaqiqa} daqiqada javob bo‘lmasa, to‘g‘ri deb saqlayman.
+
 <b>Buyruqlar:</b>
 /royxat — qaytarilmaganlar
-/excel — Excel fayl (3 varaq: hammasi, qaytarilmagan, qaytarilgan)
+/excel — Excel fayl (3 varaq)
 /oy — shu oy hisoboti
 /otganoy — o‘tgan oy hisoboti
 /bekor — suhbat tarixini tozalash
 
-Har kuni belgilangan soatda muddati kelganlarni eslataman,
-har oy boshida esa o‘tgan oy yakunini yuboraman.`;
+Har kuni soat ${cfg.eslatmaSoati}:00 da muddati kelganlarni eslataman,
+har oy boshida o‘tgan oy yakunini yuboraman.`;
 
 async function asosiy() {
   let cfg;
@@ -64,11 +70,11 @@ async function asosiy() {
   await telegram.setMyCommands(BUYRUQLAR);
 
   console.log(`✅ @${men.username} ishga tushdi`);
-  console.log(`   Baza:        ${cfg.bazaYoli} (${daftar.yozuvlar.length} yozuv)`);
-  console.log(`   Model:       ${cfg.model}${cfg.effort ? ` (effort: ${cfg.effort})` : ''}`);
-  console.log(`   Vaqt:        ${cfg.vaqtMintaqasi}, eslatma soat ${cfg.eslatmaSoati}:00`);
-  console.log(`   Ovoz:        ${cfg.asr === 'yoq' ? 'o‘chirilgan (kalit yo‘q)' : cfg.asr}`);
-  console.log(`   Ega:         ${cfg.egaId || 'BELGILANMAGAN — botga /id yozing'}`);
+  console.log(`   Baza:     ${cfg.bazaYoli} (${daftar.yozuvlar.length} yozuv)`);
+  console.log(`   Model:    ${cfg.xizmat} / ${cfg.model}${cfg.effort ? ` (effort: ${cfg.effort})` : ''}`);
+  console.log(`   Vaqt:     ${cfg.vaqtMintaqasi}, eslatma soat ${cfg.eslatmaSoati}:00`);
+  console.log(`   Ovoz:     ${cfg.asr === 'yoq' ? 'o‘chirilgan (kalit yo‘q)' : cfg.asr}, tasdiq ${cfg.tasdiqDaqiqa} daqiqa`);
+  console.log(`   Ega:      ${cfg.egaId || 'BELGILANMAGAN — botga /id yozing'}`);
 
   if (cfg.egaId) {
     // birinchi ishga tushishda o'tgan oy hisoboti darrov kelib qolmasin
@@ -90,17 +96,15 @@ async function asosiy() {
 async function pollingHalqasi({ telegram, daftar, agent, cfg }) {
   let offset = 0;
   let kechikish = 1000;
-  let toxtatildi = false;
 
   for (const signal of ['SIGINT', 'SIGTERM']) {
     process.on(signal, () => {
       console.log('\n\u{1F44B} To‘xtatilmoqda…');
-      toxtatildi = true;
       process.exit(0);
     });
   }
 
-  while (!toxtatildi) {
+  for (;;) {
     let yangilanishlar;
     try {
       yangilanishlar = await telegram.getUpdates(offset);
@@ -128,9 +132,7 @@ async function pollingHalqasi({ telegram, daftar, agent, cfg }) {
         console.error('[yangilanish]', xato);
         const chatId = yangilanish.message?.chat?.id || yangilanish.callback_query?.message?.chat?.id;
         if (chatId) {
-          await telegram
-            .sendMessage(chatId, `⚠ ${esc(agentXatosi(xato))}`)
-            .catch(() => null);
+          await telegram.sendMessage(chatId, `⚠ ${esc(agentXatosi(xato))}`).catch(() => null);
         }
       }
     }
@@ -170,23 +172,23 @@ async function xabarniIshlash(xabar, { telegram, daftar, agent, cfg }) {
 
   // ── buyruqlar ────────────────────────────────────────────────────
   const buyruq = xabar.text?.match(/^\/([a-z]+)/i)?.[1]?.toLowerCase();
-  if (buyruq) {
-    const bajarildi = await buyruqniIshlash(buyruq, { chatId, telegram, daftar, cfg });
-    if (bajarildi) return;
-  }
+  if (buyruq && await buyruqniIshlash(buyruq, { chatId, telegram, daftar, cfg })) return;
 
   // ── matn yoki ovoz ───────────────────────────────────────────────
   let matn = (xabar.text || xabar.caption || '').trim();
   let manba = 'matn';
 
-  const ovoz = xabar.voice || xabar.audio || (xabar.document?.mime_type?.startsWith('audio/') ? xabar.document : null);
+  const ovoz = xabar.voice || xabar.audio
+    || (xabar.document?.mime_type?.startsWith('audio/') ? xabar.document : null);
+
   if (ovoz) {
     await telegram.sendChatAction(chatId, 'typing');
     try {
       const fayl = await telegram.faylniYuklash(ovoz.file_id);
       matn = await ovozdanMatn(fayl.buffer, fayl.nom, cfg);
       manba = 'ovoz';
-      await telegram.sendMessage(chatId, `\u{1F3A4} <i>${esc(matn)}</i>`);
+      // eshitganini darrov qaytarib yuboramiz — egasi xatoni shu zahoti ko'rsin
+      await telegram.sendMessage(chatId, `\u{1F3A4} <b>Eshitganim:</b>\n<i>${esc(matn)}</i>`);
     } catch (xato) {
       const xabarMatni = xato instanceof OvozXatosi ? xato.message : `Ovozni o‘girib bo‘lmadi: ${xato.message}`;
       await telegram.sendMessage(chatId, `⚠ ${esc(xabarMatni)}`);
@@ -204,11 +206,44 @@ async function xabarniIshlash(xabar, { telegram, daftar, agent, cfg }) {
 
   await telegram.sendMessage(chatId, esc(natija.javob));
 
-  for (const tayyor of natija.tayyorMatnlar) {
-    await telegram.sendMessage(chatId, tayyor);
-  }
+  for (const tayyor of natija.tayyorMatnlar) await telegram.sendMessage(chatId, tayyor);
   for (const fayl of natija.fayllar) {
     await telegram.sendDocument(chatId, fayl.buffer, fayl.nom, `\u{1F4CA} ${fayl.qatorlar} qator`);
+  }
+
+  if (manba === 'ovoz' && natija.yangiYozuvlar.length) {
+    await tasdiqSorash(natija.yangiYozuvlar, { chatId, telegram, daftar, cfg });
+  }
+}
+
+/**
+ * Ovozdan yozilgan yozuvlarni ko'rsatib, tasdiq so'raydi.
+ * Xabar ID si yozuvga bog'lanadi — muddat o'tganda tugmalar olib tashlanadi.
+ */
+async function tasdiqSorash(yozuvlar, { chatId, telegram, daftar, cfg }) {
+  const kop = yozuvlar.length > 1;
+  const qatorlar = [
+    `\u{1F4DD} <b>Shu yozuv${kop ? 'lar' : ''} saqlandi:</b>`,
+    ...yozuvlar.map((y) => `   • ${esc(qisqaSatr(y))}`),
+    '',
+    'Noto‘g‘ri bo‘lsa shu yerga tuzatib yozing.',
+    `<i>${cfg.tasdiqDaqiqa} daqiqada javob bo‘lmasa, to‘g‘ri deb saqlayman.</i>`,
+  ];
+
+  const tugmalarRoyxati = [[{ text: `✅ To‘g‘ri`, callback_data: 't:*' }]];
+  for (const y of yozuvlar.slice(0, 5)) {
+    tugmalarRoyxati.push([{
+      text: `\u{1F5D1} ${y.kim}${kop && y.nima ? ` — ${y.nima}` : ''} o‘chirilsin`.slice(0, 60),
+      callback_data: `o:${y.id}`,
+    }]);
+  }
+
+  const yuborilgan = await telegram.sendMessage(chatId, qatorlar.join('\n'), {
+    reply_markup: { inline_keyboard: tugmalarRoyxati },
+  });
+
+  for (const y of yozuvlar) {
+    daftar.yangilash(y.id, { tasdiqChatId: chatId, tasdiqXabarId: yuborilgan?.message_id ?? null });
   }
 }
 
@@ -220,7 +255,7 @@ async function buyruqniIshlash(buyruq, { chatId, telegram, daftar, cfg }) {
     case 'start':
     case 'yordam':
     case 'help':
-      await telegram.sendMessage(chatId, YORDAM);
+      await telegram.sendMessage(chatId, yordamMatni(cfg));
       return true;
 
     case 'royxat':
@@ -259,43 +294,81 @@ async function buyruqniIshlash(buyruq, { chatId, telegram, daftar, cfg }) {
 }
 
 /* ------------------------------------------------------------------ */
-/* eslatmadagi "qaytardi" tugmasi                                      */
+/* tugmalar                                                            */
 /* ------------------------------------------------------------------ */
 
-async function tugmaniIshlash(sorov, { telegram, daftar, cfg }) {
+export async function tugmaniIshlash(sorov, { telegram, daftar, cfg }) {
   if (sorov.from?.id !== cfg.egaId) {
     await telegram.answerCallbackQuery(sorov.id, 'Ruxsat yo‘q');
     return;
   }
 
-  const [amal, id] = String(sorov.data || '').split(':');
-  if (amal !== 'q' || !id) {
-    await telegram.answerCallbackQuery(sorov.id, 'Tanilmagan tugma');
-    return;
-  }
+  const xom = String(sorov.data || '');
+  const ajratgich = xom.indexOf(':');
+  const amal = ajratgich === -1 ? '' : xom.slice(0, ajratgich);
+  const qiymat = ajratgich === -1 ? '' : xom.slice(ajratgich + 1);
+  const chatId = sorov.message?.chat?.id;
+  const xabarId = sorov.message?.message_id;
 
-  const javob = vositaniBajarish(
-    'qaytarildi_belgilash',
-    { id, sana: null, summa: null, izoh: null },
-    { daftar, cfg, fayllar: [], tayyorMatnlar: [] },
-  );
+  switch (amal) {
+    // eslatmadagi "qaytardi"
+    case 'q': {
+      const javob = vositaniBajarish(
+        'qaytarildi_belgilash',
+        { id: qiymat, sana: null, summa: null, izoh: null },
+        { daftar, cfg, fayllar: [], tayyorMatnlar: [], yangiYozuvlar: [] },
+      );
+      await telegram.answerCallbackQuery(sorov.id, javob.ok ? '✅ Belgilandi' : javob.xato.slice(0, 190));
+      if (!javob.ok) return;
 
-  await telegram.answerCallbackQuery(sorov.id, javob.ok ? '✅ Belgilandi' : javob.xato.slice(0, 190));
+      // ro'yxatdagi qolgan tugmalarni yangilaymiz
+      const bugungi = hozir(cfg.vaqtMintaqasi).sana;
+      const qolgan = daftar.yozuvlar.filter(
+        (y) => y.holat !== 'qaytarildi' && y.qaytarish_sanasi && y.qaytarish_sanasi <= bugungi,
+      );
+      await telegram.editMessageReplyMarkup(chatId, xabarId, tugmalar(qolgan));
+      await telegram.sendMessage(chatId, esc(javob.xabar));
+      return;
+    }
 
-  if (javob.ok) {
-    const qolgan = daftar.yozuvlar.filter(
-      (y) => y.holat !== 'qaytarildi' && y.qaytarish_sanasi && y.qaytarish_sanasi <= hozir(cfg.vaqtMintaqasi).sana,
-    );
-    await telegram.editMessageReplyMarkup(sorov.message.chat.id, sorov.message.message_id, {
-      inline_keyboard: qolgan.slice(0, 20).map((y) => [
-        { text: `✅ ${y.kim}${y.nima ? ` — ${y.nima}` : ''}`.slice(0, 60), callback_data: `q:${y.id}` },
-      ]),
-    });
-    await telegram.sendMessage(sorov.message.chat.id, esc(javob.xabar));
+    // ovozdan yozilganini tasdiqlash
+    case 't': {
+      const yozuvlar = qiymat === '*' ? daftar.kutilayotganlar() : [daftar.topish(qiymat)].filter(Boolean);
+      const tasdiqlangan = yozuvlar.map((y) => daftar.tasdiqlash(y.id)).filter(Boolean);
+
+      await telegram.answerCallbackQuery(
+        sorov.id,
+        tasdiqlangan.length ? `✅ ${tasdiqlangan.length} ta yozuv tasdiqlandi` : 'Allaqachon tasdiqlangan',
+      );
+      await telegram.editMessageReplyMarkup(chatId, xabarId);
+      return;
+    }
+
+    // noto'g'ri eshitilgan yozuvni o'chirish
+    case 'o': {
+      const javob = vositaniBajarish(
+        'yozuvni_ochirish',
+        { id: qiymat },
+        { daftar, cfg, fayllar: [], tayyorMatnlar: [], yangiYozuvlar: [] },
+      );
+      await telegram.answerCallbackQuery(sorov.id, javob.ok ? '\u{1F5D1} O‘chirildi' : javob.xato.slice(0, 190));
+      if (javob.ok) {
+        await telegram.editMessageReplyMarkup(chatId, xabarId);
+        await telegram.sendMessage(chatId, `${esc(javob.xabar)}\n\nTo‘g‘risini yozib yuboring.`);
+      }
+      return;
+    }
+
+    default:
+      await telegram.answerCallbackQuery(sorov.id, 'Tanilmagan tugma');
   }
 }
 
-asosiy().catch((xato) => {
-  console.error('❌ Kutilmagan xato:', xato);
-  process.exit(1);
-});
+// faqat to'g'ridan-to'g'ri ishga tushirilganda startlaydi — sinovlar import qila olsin
+const buFayl = fileURLToPath(import.meta.url);
+if (process.argv[1] && path.resolve(process.argv[1]) === buFayl) {
+  asosiy().catch((xato) => {
+    console.error('Kutilmagan xato:', xato);
+    process.exit(1);
+  });
+}

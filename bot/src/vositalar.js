@@ -134,7 +134,13 @@ export const VOSITALAR = [
 
 const xato = (xabar) => ({ ok: false, xato: xabar });
 
-const bosh = (qiymat) => qiymat === null || qiymat === undefined || qiymat === '';
+const BOSH_SATRLAR = new Set(['null', 'none', 'undefined', 'nan', '-', 'yoq']);
+
+/** Bo'sh qiymat. Ba'zi modellar null o'rniga "null" satrini yuboradi. */
+const bosh = (qiymat) => {
+  if (qiymat === null || qiymat === undefined || qiymat === '') return true;
+  return typeof qiymat === 'string' && BOSH_SATRLAR.has(qiymat.trim().toLowerCase());
+};
 
 /** Claude ba'zan sonni matn qilib yuborishi mumkin — ehtiyot chorasi */
 function sonGa(qiymat) {
@@ -164,6 +170,7 @@ const ixcham = (y) => ({
   holat: y.holat,
   qaytarilgan_sana: y.qaytarilgan_sana,
   qaytarilgan_summa: y.qaytarilgan_summa || 0,
+  tasdiq: y.tasdiq || 'tasdiqlangan',
 });
 
 export const ISHLOVCHILAR = {
@@ -184,6 +191,9 @@ export const ISHLOVCHILAR = {
       return xato('Qaytarish sanasi berilgan sanadan oldin bo‘lishi mumkin emas. Sanani aniqlashtir.');
     }
 
+    // ovozdan yozilgan bo'lsa — egasi tasdiqlagunicha yoki muddat o'tguncha kutadi
+    const kutadi = ktx.manba === 'ovoz' && cfg.tasdiqDaqiqa > 0;
+
     const yozuv = daftar.qoshish({
       turi: kirish.turi,
       kim,
@@ -195,7 +205,11 @@ export const ISHLOVCHILAR = {
       izoh: bosh(kirish.izoh) ? null : String(kirish.izoh).trim(),
       manba: ktx.manba || 'matn',
       asl_matn: ktx.aslMatn || null,
+      tasdiq: kutadi ? 'kutilmoqda' : 'tasdiqlangan',
+      tasdiqMuddati: kutadi ? new Date(Date.now() + cfg.tasdiqDaqiqa * 60000).toISOString() : null,
     });
+
+    ktx.yangiYozuvlar?.push(yozuv);
 
     return { ok: true, yozuv: ixcham(yozuv), xabar: `Saqlandi: ${qisqaSatr(yozuv)}` };
   },
@@ -281,6 +295,12 @@ export const ISHLOVCHILAR = {
 
     if (!Object.keys(ozgarishlar).length) return xato('Hech qanday o‘zgarish berilmadi.');
 
+    // egasi o'zi tuzatdi — endi tasdiqni kutib o'tirishning hojati yo'q
+    if (yozuv.tasdiq === 'kutilmoqda') {
+      ozgarishlar.tasdiq = 'tasdiqlangan';
+      ozgarishlar.tasdiqMuddati = null;
+    }
+
     const yangi = ktx.daftar.yangilash(kirish.id, ozgarishlar);
     return { ok: true, yozuv: ixcham(yangi), xabar: `Yangilandi: ${qisqaSatr(yangi)}` };
   },
@@ -334,6 +354,9 @@ export const ISHLOVCHILAR = {
 /** Vositani chaqiradi; har qanday kutilmagan xato ham Claude ga matn bo'lib qaytadi */
 export function vositaniBajarish(nom, kirish, ktx) {
   const ishlovchi = ISHLOVCHILAR[nom];
+  if (kirish && kirish.__buzuqJson !== undefined) {
+    return xato('Argumentlar buzuq JSON bo\'lib keldi. Qaytadan, to\'g\'ri JSON bilan chaqir.');
+  }
   if (!ishlovchi) return xato(`Noma’lum vosita: ${nom}`);
   try {
     return ishlovchi(kirish || {}, ktx);
